@@ -4,8 +4,10 @@ from app.config import settings
 from app.db.database import Base, engine
 from app.models.patient import Patient
 from app.models.session import Session
+from app.models.document import Document
 from app.api.patients import router as patients_router
 from app.api.sessions import router as sessions_router
+from app.api.documents import router as documents_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -18,7 +20,7 @@ app = FastAPI(
 
 app.include_router(patients_router)
 app.include_router(sessions_router)
-
+app.include_router(documents_router)
 
 
 @app.get("/")
