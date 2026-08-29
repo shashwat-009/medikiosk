@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.response import Response
 from app.models.session import Session as SessionModel
+from app.models.consent import Consent
 from app.schemas.response import ResponseCreate, ResponseResponse
 
 
@@ -13,6 +14,7 @@ router = APIRouter(
 )
 
 
+# Create Response
 @router.post("/", response_model=ResponseResponse)
 def create_response(
     response: ResponseCreate,
@@ -26,6 +28,23 @@ def create_response(
         raise HTTPException(
             status_code=404,
             detail="Session not found"
+        )
+
+    # Check capture consent
+    consent = db.query(Consent).filter(
+        Consent.session_id == response.session_id
+    ).first()
+
+    if consent is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Consent not found for this session"
+        )
+
+    if not consent.capture_consent or consent.revoked:
+        raise HTTPException(
+            status_code=403,
+            detail="Valid capture consent is required"
         )
 
     new_response = Response(
@@ -43,11 +62,13 @@ def create_response(
     return new_response
 
 
+# Get All Responses
 @router.get("/", response_model=list[ResponseResponse])
 def get_responses(db: Session = Depends(get_db)):
     return db.query(Response).all()
 
 
+# Get One Response
 @router.get("/{response_id}", response_model=ResponseResponse)
 def get_response(
     response_id: int,
@@ -66,6 +87,7 @@ def get_response(
     return response
 
 
+# Update Response
 @router.put("/{response_id}", response_model=ResponseResponse)
 def update_response(
     response_id: int,
@@ -104,6 +126,7 @@ def update_response(
     return response
 
 
+# Delete Response
 @router.delete("/{response_id}")
 def delete_response(
     response_id: int,
