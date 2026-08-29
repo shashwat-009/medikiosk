@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.doctor import Doctor
+from app.models.session import Session as SessionModel
 from app.schemas.doctor import DoctorCreate, DoctorResponse
+from app.schemas.session import SessionResponse
 
 
 router = APIRouter(
@@ -100,3 +102,29 @@ def delete_doctor(
     return {
         "message": "Doctor deleted successfully"
     }
+
+
+# Get Sessions Assigned to Doctor
+@router.get(
+    "/{doctor_id}/sessions",
+    response_model=list[SessionResponse]
+)
+def get_doctor_sessions(
+    doctor_id: int,
+    db: Session = Depends(get_db)
+):
+    doctor = db.query(Doctor).filter(
+        Doctor.id == doctor_id
+    ).first()
+
+    if doctor is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Doctor not found"
+        )
+
+    sessions = db.query(SessionModel).filter(
+        SessionModel.doctor_id == doctor_id
+    ).all()
+
+    return sessions
