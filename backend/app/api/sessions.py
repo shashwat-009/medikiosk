@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.patient import Patient
+from app.models.doctor import Doctor
 from app.models.session import Session as SessionModel
 from app.schemas.session import SessionCreate, SessionResponse
 
@@ -29,8 +30,20 @@ def create_session(
             detail="Patient not found"
         )
 
+    if session_data.doctor_id is not None:
+        doctor = db.query(Doctor).filter(
+            Doctor.id == session_data.doctor_id
+        ).first()
+
+        if doctor is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Doctor not found"
+            )
+
     new_session = SessionModel(
-        patient_id=session_data.patient_id
+        patient_id=session_data.patient_id,
+        doctor_id=session_data.doctor_id
     )
 
     db.add(new_session)
@@ -92,7 +105,19 @@ def update_session(
             detail="Patient not found"
         )
 
+    if session_data.doctor_id is not None:
+        doctor = db.query(Doctor).filter(
+            Doctor.id == session_data.doctor_id
+        ).first()
+
+        if doctor is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Doctor not found"
+            )
+
     session.patient_id = session_data.patient_id
+    session.doctor_id = session_data.doctor_id
 
     db.commit()
     db.refresh(session)

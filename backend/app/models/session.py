@@ -15,6 +15,12 @@ class Session(Base):
         nullable=False
     )
 
+    doctor_id = Column(
+    Integer,
+    ForeignKey("doctors.id"),
+    nullable=True
+    )
+
     status = Column(
         String,
         nullable=False,
