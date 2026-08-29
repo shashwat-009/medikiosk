@@ -32,6 +32,17 @@ class Consent(Base):
         nullable=True
     )
 
+    revoked = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    revoked_at = Column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()

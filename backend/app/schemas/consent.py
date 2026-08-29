@@ -14,6 +14,8 @@ class ConsentResponse(BaseModel):
     capture_consent: bool
     sharing_consent: bool
     language: str | None
+    revoked: bool
+    revoked_at: object | None
     created_at: object
 
     class Config:

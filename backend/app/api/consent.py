@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 from app.db.database import get_db
 from app.models.session import Session as SessionModel
@@ -71,5 +72,38 @@ def get_session_consent(
             status_code=404,
             detail="Consent not found"
         )
+
+    return consent
+
+# Revoke Consent
+@router.put(
+    "/session/{session_id}/revoke",
+    response_model=ConsentResponse
+)
+def revoke_consent(
+    session_id: int,
+    db: Session = Depends(get_db)
+):
+    consent = db.query(Consent).filter(
+        Consent.session_id == session_id
+    ).first()
+
+    if consent is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Consent not found"
+        )
+
+    if consent.revoked:
+        raise HTTPException(
+            status_code=400,
+            detail="Consent already revoked"
+        )
+
+    consent.revoked = True
+    consent.revoked_at = datetime.now(timezone.utc)
+
+    db.commit()
+    db.refresh(consent)
 
     return consent
