@@ -1,0 +1,381 @@
+.interview {
+  min-height: 100vh;
+  padding: 40px 24px;
+
+  display: flex;
+  justify-content: center;
+}
+
+.interview__container {
+  width: 100%;
+  max-width: 900px;
+}
+
+/* =========================
+   Header
+   ========================= */
+
+.interview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 42px;
+}
+
+.interview__back {
+  padding: 10px 14px;
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  background: var(--surface);
+  color: var(--muted);
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.interview__back:hover {
+  border-color: var(--teal-600);
+  color: var(--teal-900);
+  background: var(--teal-050);
+}
+
+.interview__back:focus-visible {
+  outline: 3px solid var(--teal-600);
+  outline-offset: 3px;
+}
+
+/* =========================
+   Intro
+   ========================= */
+
+.interview__intro {
+  margin-bottom: 30px;
+}
+
+.interview__eyebrow {
+  margin: 0 0 12px;
+
+  color: var(--saffron);
+
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.interview__intro h1 {
+  margin: 0 0 12px;
+
+  font-family: var(--font-display);
+
+  font-size: 42px;
+  line-height: 1.15;
+  font-weight: 600;
+
+  color: var(--teal-900);
+}
+
+.interview__intro > p:last-child {
+  max-width: 58ch;
+
+  margin: 0;
+
+  color: var(--muted);
+
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* =========================
+   Main Card
+   ========================= */
+
+.interview__card {
+  padding: 36px;
+
+  background: var(--surface);
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+
+  box-shadow: var(--shadow-md);
+}
+
+/* =========================
+   Voice Section
+   ========================= */
+
+.interview__voice-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 10px 0 4px;
+}
+
+.interview__input-hint {
+  margin: 0;
+
+  color: var(--muted-2);
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.interview__listening {
+  margin: -12px 0 18px;
+
+  color: var(--teal-700);
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* =========================
+   Voice / Touch Divider
+   ========================= */
+
+.interview__divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  margin: 10px 0 22px;
+
+  color: var(--muted-2);
+
+  font-size: 12px;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.interview__divider::before,
+.interview__divider::after {
+  content: "";
+
+  flex: 1;
+
+  height: 1px;
+
+  background: var(--line);
+}
+
+/* =========================
+   Text Input
+   ========================= */
+
+.interview__text-input {
+  margin-top: 8px;
+}
+
+.interview__text-input textarea {
+  width: 100%;
+  min-height: 120px;
+
+  box-sizing: border-box;
+
+  padding: 16px;
+
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+
+  background: var(--surface);
+  color: var(--ink);
+
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+
+  resize: vertical;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.interview__text-input textarea:focus {
+  outline: none;
+
+  border-color: var(--teal-600);
+
+  box-shadow:
+    0 0 0 3px rgba(40, 123, 134, 0.12);
+}
+
+.interview__text-input textarea::placeholder {
+  color: var(--muted-2);
+}
+
+/* =========================
+   Answer
+   ========================= */
+
+.interview__answer {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  margin-top: 20px;
+  padding: 18px;
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+
+  background: var(--teal-050);
+}
+
+.interview__answer-label {
+  display: block;
+
+  margin-bottom: 6px;
+
+  color: var(--muted-2);
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.interview__answer p {
+  margin: 0;
+
+  color: var(--ink);
+
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* =========================
+   Error
+   ========================= */
+
+.interview__error {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+
+  border-radius: var(--radius-md);
+
+  background: var(--danger-light);
+  color: var(--danger);
+
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* =========================
+   Actions
+   ========================= */
+
+.interview__actions {
+  display: flex;
+  justify-content: flex-end;
+
+  margin-top: 28px;
+}
+
+.interview__continue {
+  min-width: 170px;
+  min-height: 54px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  padding: 0 24px;
+
+  border: none;
+  border-radius: var(--radius-md);
+
+  background: var(--teal-900);
+  color: white;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.interview__continue:hover {
+  background: var(--teal-800);
+
+  transform: translateY(-1px);
+
+  box-shadow: var(--shadow-sm);
+}
+
+.interview__continue:active {
+  transform: translateY(0);
+}
+
+.interview__continue:focus-visible {
+  outline: 3px solid var(--teal-600);
+  outline-offset: 3px;
+}
+
+.interview__continue span {
+  font-size: 20px;
+}
+
+/* =========================
+   Privacy
+   ========================= */
+
+.interview__privacy {
+  margin: 16px 0 0;
+
+  text-align: center;
+
+  color: var(--muted-2);
+
+  font-size: 12px;
+}
+
+/* =========================
+   Responsive
+   ========================= */
+
+@media (max-width: 700px) {
+  .interview {
+    padding: 28px 16px;
+  }
+
+  .interview__header {
+    margin-bottom: 32px;
+  }
+
+  .interview__intro h1 {
+    font-size: 34px;
+  }
+
+  .interview__card {
+    padding: 26px 20px;
+  }
+
+  .interview__actions {
+    justify-content: stretch;
+  }
+
+  .interview__continue {
+    width: 100%;
+  }
+}

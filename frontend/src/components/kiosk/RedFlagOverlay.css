@@ -1,0 +1,185 @@
+.red-flag-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+}
+
+.red-flag-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(17, 28, 34, 0.68);
+
+  backdrop-filter: blur(4px);
+}
+
+.red-flag-overlay__card {
+  position: relative;
+  z-index: 1;
+
+  width: 100%;
+  max-width: 520px;
+
+  padding: 34px;
+
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+
+  background: var(--surface);
+
+  box-shadow: var(--shadow-lg);
+
+  text-align: center;
+}
+
+.red-flag-overlay__icon {
+  width: 58px;
+  height: 58px;
+
+  margin: 0 auto 16px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--danger-light);
+
+  color: var(--danger);
+
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.red-flag-overlay__eyebrow {
+  margin: 0 0 8px;
+
+  color: var(--danger);
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.red-flag-overlay__card h2 {
+  margin: 0 0 14px;
+
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.2;
+
+  color: var(--teal-900);
+}
+
+.red-flag-overlay__message {
+  max-width: 45ch;
+
+  margin: 0 auto 20px;
+
+  color: var(--muted);
+
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.red-flag-overlay__symptom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  margin-bottom: 24px;
+  padding: 14px;
+
+  border-radius: var(--radius-md);
+
+  background: var(--surface-muted);
+
+  text-align: left;
+}
+
+.red-flag-overlay__symptom span {
+  color: var(--muted-2);
+
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.red-flag-overlay__symptom strong {
+  color: var(--ink);
+
+  font-size: 15px;
+}
+
+.red-flag-overlay__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.red-flag-overlay__primary,
+.red-flag-overlay__secondary {
+  min-height: 52px;
+
+  border-radius: var(--radius-md);
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.red-flag-overlay__primary {
+  border: none;
+
+  background: var(--danger);
+  color: white;
+}
+
+.red-flag-overlay__primary:hover {
+  filter: brightness(0.94);
+}
+
+.red-flag-overlay__secondary {
+  border: 1px solid var(--line);
+
+  background: var(--surface);
+
+  color: var(--ink);
+}
+
+.red-flag-overlay__secondary:hover {
+  border-color: var(--teal-600);
+}
+
+.red-flag-overlay__primary:focus-visible,
+.red-flag-overlay__secondary:focus-visible {
+  outline: 3px solid var(--teal-600);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .red-flag-overlay {
+    padding: 16px;
+  }
+
+  .red-flag-overlay__card {
+    padding: 26px 20px;
+  }
+
+  .red-flag-overlay__card h2 {
+    font-size: 25px;
+  }
+
+  .red-flag-overlay__actions {
+    grid-template-columns: 1fr;
+  }
+}

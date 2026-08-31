@@ -14,14 +14,23 @@ router = APIRouter(
 
 @router.post("/", response_model=PatientResponse)
 def create_patient(
-    patient: PatientCreate,
+    patient_data: PatientCreate,
     db: Session = Depends(get_db)
 ):
+    # Check whether patient already exists
+    existing_patient = db.query(Patient).filter(
+        Patient.phone == patient_data.phone
+    ).first()
+
+    if existing_patient is not None:
+        return existing_patient
+
+    # Create new patient only if phone is not found
     new_patient = Patient(
-        name=patient.name,
-        age=patient.age,
-        gender=patient.gender,
-        phone=patient.phone
+        name=patient_data.name,
+        age=patient_data.age,
+        gender=patient_data.gender,
+        phone=patient_data.phone
     )
 
     db.add(new_patient)

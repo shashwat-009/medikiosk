@@ -1,0 +1,32 @@
+.interview-question {
+  margin-bottom: 30px;
+}
+
+.interview-question__label {
+  margin: 0 0 10px;
+
+  color: var(--saffron);
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.interview-question__text {
+  max-width: 680px;
+
+  margin: 0;
+
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 600;
+
+  color: var(--teal-900);
+}
+
+@media (max-width: 600px) {
+  .interview-question__text {
+    font-size: 26px;
+  }
+}

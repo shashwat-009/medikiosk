@@ -1,0 +1,131 @@
+{
+  "welcome": {
+    "eyebrow": "PRE-CONSULT CLINICAL INTAKE · OPD WAITING AREA",
+    "title": "Your history, taken before the doctor calls you in.",
+    "description": "Speak or tap in your own language. MediKiosk helps collect your medical history and documents before your consultation.",
+    "chooseLanguage": "Choose your language",
+    "languageHint": "Choose your preferred language",
+    "needHelp": "Need help? Call Kiosk Mitra"
+  },
+
+  "identify": {
+    "eyebrow": "PATIENT IDENTIFICATION",
+    "title": "Let's identify you",
+    "description": "Provide your details to begin your visit.",
+    "name": "Full name",
+    "age": "Age",
+    "gender": "Gender",
+    "phone": "Phone number",
+    "namePlaceholder": "Enter your full name",
+    "agePlaceholder": "Age",
+    "genderPlaceholder": "Select",
+    "male": "Male",
+    "female": "Female",
+    "other": "Other",
+    "phonePlaceholder": "Enter your phone number",
+    "continue": "Continue",
+    "nameRequired": "Please enter your name.",
+    "ageRequired": "Please enter your age.",
+    "genderRequired": "Please select your gender.",
+    "phoneRequired": "Please enter your phone number."
+  },
+
+  "consent": {
+    "eyebrow": "CONSENT",
+    "title": "Your consent",
+    "description": "Please review the information below and provide your consent before continuing.",
+    "captureTitle": "Health information collection",
+    "capture": "I consent to MediKiosk collecting and recording the information I provide during this visit.",
+    "sharingTitle": "Information sharing",
+    "sharing": "I consent to sharing my information with the healthcare team for my consultation.",
+    "notice": "You can ask the healthcare team about how your information is used.",
+    "continue": "Continue",
+    "required": "Please accept both consent options before continuing."
+  },
+
+  "interview": {
+    "eyebrow": "CLINICAL HISTORY",
+    "title": "Tell us about your health",
+    "description": "You can speak naturally or enter your answer on the screen.",
+    "speak": "Speak",
+    "listening": "Listening...",
+    "processing": "Processing...",
+    "tap": "Choose an option",
+    "type": "Or type your answer",
+    "yes": "Yes",
+    "no": "No",
+    "continue": "Continue",
+    "back": "Back",
+    "answerLabel": "Your answer",
+    "privacy": "Your responses are recorded as part of your clinical history.",
+
+    "questions": {
+      "chiefComplaint": "What brings you here today?",
+      "symptoms": "Please tell us about the symptoms you are experiencing.",
+      "duration": "How long have you been experiencing these symptoms?",
+      "fever": "Do you have a fever?",
+      "medications": "Are you currently taking any medicines?"
+    },
+
+    "errors": {
+      "answerRequired": "Please provide an answer before continuing.",
+      "voiceError": "We couldn't understand your response. Please try again."
+    }
+  },
+
+ "documents": {
+  "eyebrow": "MEDICAL DOCUMENTS",
+  "title": "Add your medical documents",
+  "description": "Upload prescriptions, lab reports, discharge summaries or other medical documents.",
+  "documentType": "What type of document are you adding?",
+  "prescription": "Prescription",
+  "labReport": "Lab report",
+  "dischargeSummary": "Discharge summary",
+  "other": "Other",
+  "selected": "Selected documents",
+  "upload": "Upload document",
+  "fileHint": "JPG, PNG or PDF",
+  "skip": "Skip"
+},
+
+ "processing": {
+  "eyebrow": "PROCESSING",
+  "title": "Preparing your clinical history",
+  "description": "Please wait while we organize your information.",
+  "stepResponses": "Organizing your responses",
+  "stepHistory": "Preparing your clinical history",
+  "stepReview": "Preparing for doctor review",
+  "note": "Please do not close or refresh this page."
+},
+
+"confirmation": {
+  "eyebrow": "COMPLETE",
+  "title": "Your information is ready",
+  "description": "Your clinical history has been prepared for the healthcare team.",
+  "statusPatient": "Patient information recorded",
+  "statusHistory": "Clinical history prepared",
+  "statusReview": "Ready for healthcare team review",
+  "continue": "Continue to consultation",
+  "note": "You may now speak with your healthcare team."
+},
+
+  "doctor": {
+    "login": "Doctor login",
+    "dashboard": "Doctor dashboard",
+    "sessions": "Patient sessions",
+    "review": "Review session",
+    "approve": "Approve",
+    "edit": "Edit",
+    "save": "Save"
+  },
+
+  "common": {
+    "back": "Back",
+    "next": "Next",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Something went wrong.",
+    "retry": "Try again"
+  }
+}

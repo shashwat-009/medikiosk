@@ -11,5 +11,10 @@ class Patient(Base):
 	name = Column(String, nullable=False)
 	age = Column(Integer, nullable=False)
 	gender = Column(String, nullable=False)
-	phone = Column(String, nullable=True)
+	phone = Column(
+    String,
+    nullable=False,
+    unique=True,
+    index=True
+)
 	created_at = Column(DateTime(timezone=True), server_default=func.now())

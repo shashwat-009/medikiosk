@@ -1,0 +1,85 @@
+.touch-options {
+  margin-bottom: 28px;
+}
+
+.touch-options__label {
+  margin: 0 0 12px;
+
+  color: var(--muted-2);
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.touch-options__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.touch-options__button {
+  min-height: 76px;
+
+  padding: 18px 24px;
+
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-md);
+
+  background: var(--teal-050);
+
+  color: var(--teal-900);
+
+  font-size: 18px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.touch-options__button:hover {
+  border-color: var(--teal-600);
+  background: var(--teal-100);
+
+  transform: translateY(-2px);
+
+  box-shadow: var(--shadow-sm);
+}
+
+.touch-options__button:active {
+  transform: translateY(0);
+}
+
+.touch-options__button--selected {
+  border-color: var(--teal-900);
+  background: var(--teal-900);
+
+  color: white;
+
+  box-shadow: var(--shadow-sm);
+}
+
+.touch-options__button--selected:hover {
+  background: var(--teal-800);
+  border-color: var(--teal-800);
+}
+
+.touch-options__button:focus-visible {
+  outline: 3px solid var(--teal-600);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .touch-options__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .touch-options__button {
+    min-height: 64px;
+  }
+}
