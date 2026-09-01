@@ -85,7 +85,10 @@
   "selected": "चयनित दस्तावेज़",
   "upload": "दस्तावेज़ अपलोड करें",
   "fileHint": "JPG, PNG या PDF",
-  "skip": "छोड़ें"
+  "skip": "छोड़ें",
+  "patientRequired": "मरीज की जानकारी उपलब्ध नहीं है।",
+  "sessionRequired": "सक्रिय सत्र की जानकारी उपलब्ध नहीं है।"
+
 },
 
   "processing": {

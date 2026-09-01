@@ -85,7 +85,9 @@
   "selected": "Selected documents",
   "upload": "Upload document",
   "fileHint": "JPG, PNG or PDF",
-  "skip": "Skip"
+  "skip": "Skip",
+  "patientRequired": "Patient information is missing.",
+  "sessionRequired": "Active session information is missing."
 },
 
  "processing": {
