@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import { useKiosk } from "../../context/KioskContext";
 import { translate } from "../../i18n";
-import { interviewScript } from "../../data/interviewScript";
+
+import {
+  startConversation,
+  submitConversationAnswer,
+} from "../../services/conversationService";
 
 import { createResponse } from "../../services/responseService";
 
@@ -15,63 +19,224 @@ import InterviewQuestion from "../../components/patient/InterviewQuestion";
 
 import "./Interview.css";
 
+
 export default function Interview() {
   const navigate = useNavigate();
 
   const {
     state,
     pushTranscript,
+    triggerRedFlag,
     clearRedFlag,
   } = useKiosk();
 
   const language = state.language || "en";
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [inputMode, setInputMode] = useState("idle");
-  const [inputType, setInputType] = useState("");
-  const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [conversationStarted, setConversationStarted] =
+    useState(false);
 
-  const currentQuestion = interviewScript[currentIndex];
+  const [chiefComplaint, setChiefComplaint] =
+    useState("");
 
-  const isLastQuestion =
-    currentIndex === interviewScript.length - 1;
+  const [currentQuestion, setCurrentQuestion] =
+    useState(null);
+
+  const [answer, setAnswer] =
+    useState("");
+
+  const [inputMode, setInputMode] =
+    useState("idle");
+
+  const [inputType, setInputType] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [isStarting, setIsStarting] =
+    useState(false);
+
+  const [questionNumber, setQuestionNumber] =
+    useState(1);
+
 
   /*
-   * =========================
-   * Voice input
-   * =========================
+   * ============================================================
+   * Helpers
+   * ============================================================
+   */
+
+  function getQuestionText(question) {
+    if (!question) {
+      return "";
+    }
+
+    return (
+      question.question ??
+      question.text ??
+      ""
+    );
+  }
+
+
+  function getQuestionId(question) {
+    if (!question) {
+      return null;
+    }
+
+    return (
+      question.id ??
+      question.question_id ??
+      null
+    );
+  }
+
+
+  function formatError(errorValue) {
+    if (!errorValue) {
+      return translate(
+        language,
+        "common.error"
+      );
+    }
+
+    if (typeof errorValue === "string") {
+      return errorValue;
+    }
+
+    if (errorValue instanceof Error) {
+      return errorValue.message;
+    }
+
+    if (typeof errorValue === "object") {
+      if (typeof errorValue.message === "string") {
+        return errorValue.message;
+      }
+
+      if (typeof errorValue.detail === "string") {
+        return errorValue.detail;
+      }
+
+      try {
+        return JSON.stringify(errorValue);
+      } catch {
+        return translate(
+          language,
+          "common.error"
+        );
+      }
+    }
+
+    return String(errorValue);
+  }
+
+
+  /*
+   * ============================================================
+   * Start adaptive conversation
+   * ============================================================
+   */
+
+  async function startAdaptiveConversation(
+    complaint
+  ) {
+    if (!state.session?.id) {
+      throw new Error(
+        "No active session found."
+      );
+    }
+
+    setIsStarting(true);
+    setError("");
+
+    try {
+      const result =
+        await startConversation({
+          sessionId: state.session.id,
+          complaint,
+          language,
+        });
+
+      if (!result?.question) {
+        throw new Error(
+          "The server did not return a first question."
+        );
+      }
+
+      setConversationStarted(true);
+
+      setCurrentQuestion(
+        result.question
+      );
+
+      setQuestionNumber(1);
+
+      setChiefComplaint(
+        complaint
+      );
+
+    } catch (err) {
+      console.error(
+        "Failed to start conversation:",
+        err
+      );
+
+      throw err;
+
+    } finally {
+      setIsStarting(false);
+    }
+  }
+
+
+  /*
+   * ============================================================
+   * Voice
+   * ============================================================
    */
 
   function handleVoiceStart() {
     setError("");
     setInputMode("listening");
     setInputType("voice");
-
-    /*
-     * TEMPORARY FRONTEND MOCK
-     *
-     * Real ASR will replace this later.
-     */
-    setTimeout(() => {
-      setInputMode("idle");
-    }, 1500);
   }
 
-  function handleVoiceResult(transcript) {
-    if (!transcript) return;
+
+  async function handleVoiceResult(
+    transcript
+  ) {
+    if (!transcript?.trim()) {
+      return;
+    }
 
     setAnswer(transcript);
-    setInputMode("answered");
     setInputType("voice");
+    setInputMode("answered");
     setError("");
+
+    if (!conversationStarted) {
+      try {
+        await startAdaptiveConversation(
+          transcript.trim()
+        );
+      } catch (err) {
+        setError(
+          formatError(err)
+        );
+      }
+
+      return;
+    }
   }
 
+
   /*
-   * =========================
-   * Touch input
-   * =========================
+   * ============================================================
+   * Touch
+   * ============================================================
    */
 
   function handleTouchAnswer(value) {
@@ -81,76 +246,97 @@ export default function Interview() {
     setError("");
   }
 
+
   /*
-   * =========================
-   * Text input
-   * =========================
+   * ============================================================
+   * Text
+   * ============================================================
    */
 
   function handleTextChange(event) {
-    setAnswer(event.target.value);
+    const value =
+      event.target.value;
+
+    setAnswer(value);
     setInputMode("answered");
     setInputType("touch");
     setError("");
   }
 
+
   /*
-   * =========================
+   * ============================================================
    * Save response
-   * =========================
+   * ============================================================
    */
 
-  async function saveCurrentResponse() {
+  async function saveBackendResponse({
+    question,
+    answerValue,
+    type,
+  }) {
     if (!state.session?.id) {
       throw new Error(
         "No active session found."
       );
     }
 
-    const response = await createResponse({
-      session_id: state.session.id,
+    const questionText =
+      getQuestionText(question);
 
-      question: translate(
+    if (!questionText) {
+      throw new Error(
+        "Question text is missing."
+      );
+    }
+
+    const response =
+      await createResponse({
+        session_id:
+          state.session.id,
+
+        question:
+          questionText,
+
+        answer:
+          answerValue.trim(),
+
+        input_type:
+          type || "touch",
+
         language,
-        currentQuestion.questionKey
-      ),
+      });
 
-      answer: answer.trim(),
-
-      input_type: inputType || "touch",
-
-      language,
-    });
-
-    /*
-     * Keep local transcript as well.
-     */
     pushTranscript({
-      questionId: currentQuestion.id,
+      questionId:
+        getQuestionId(question),
 
-      question: translate(
-        language,
-        currentQuestion.questionKey
-      ),
+      question:
+        questionText,
 
-      answer: answer.trim(),
+      answer:
+        answerValue.trim(),
 
       language,
 
-      inputType: inputType || "touch",
+      inputType:
+        type || "touch",
 
-      timestamp: new Date().toISOString(),
+      timestamp:
+        new Date().toISOString(),
 
-      backendResponseId: response.id,
+      backendResponseId:
+        response.id,
     });
 
     return response;
   }
 
+
   /*
-   * =========================
+   * ============================================================
    * Continue
-   * =========================
+   * ============================================================
    */
 
   async function handleContinue() {
@@ -178,93 +364,216 @@ export default function Interview() {
 
     try {
       /*
-       * Save answer to backend.
+       * --------------------------------------------------------
+       * Chief complaint phase
+       * --------------------------------------------------------
        */
-      await saveCurrentResponse();
+
+      if (!conversationStarted) {
+        await saveBackendResponse({
+          question: {
+            id: "chief_complaint",
+            question: "Chief complaint",
+          },
+
+          answerValue:
+            answer,
+
+          type:
+            inputType || "touch",
+        });
+
+        await startAdaptiveConversation(
+          answer.trim()
+        );
+
+        setAnswer("");
+        setInputMode("idle");
+        setInputType("");
+
+        return;
+      }
+
 
       /*
-       * Last question → Documents
+       * --------------------------------------------------------
+       * Safety check
+       * --------------------------------------------------------
        */
-      if (isLastQuestion) {
+
+      if (!currentQuestion) {
+        throw new Error(
+          "No current question is available."
+        );
+      }
+
+
+      /*
+       * --------------------------------------------------------
+       * Save patient's answer
+       * --------------------------------------------------------
+       */
+
+      await saveBackendResponse({
+        question:
+          currentQuestion,
+
+        answerValue:
+          answer,
+
+        type:
+          inputType || "touch",
+      });
+
+
+      /*
+       * --------------------------------------------------------
+       * Tell DialogueManager about the answer
+       * --------------------------------------------------------
+       */
+
+      const result =
+        await submitConversationAnswer({
+          sessionId:
+            state.session.id,
+
+          fieldId:
+            currentQuestion.field_id,
+
+          answer:
+            answer.trim(),
+
+          questionId:
+            getQuestionId(
+              currentQuestion
+            ),
+
+          inputType:
+            inputType || "touch",
+        });
+
+
+      /*
+       * --------------------------------------------------------
+       * Red flag
+       * --------------------------------------------------------
+       */
+
+      if (result?.red_flag) {
+        triggerRedFlag(
+          result.red_flag
+        );
+      }
+
+
+      /*
+       * --------------------------------------------------------
+       * Conversation complete
+       * --------------------------------------------------------
+       */
+
+      if (
+        result?.completed ||
+        !result?.next_question
+      ) {
         navigate("/documents");
         return;
       }
 
+
       /*
-       * Move to next question.
+       * --------------------------------------------------------
+       * Next adaptive question
+       * --------------------------------------------------------
        */
-      setCurrentIndex(
+
+      setCurrentQuestion(
+        result.next_question
+      );
+
+      setQuestionNumber(
         (current) => current + 1
       );
 
       setAnswer("");
       setInputMode("idle");
       setInputType("");
-      setError("");
 
     } catch (err) {
       console.error(
-        "Failed to save interview response:",
+        "Failed to process interview answer:",
         err
       );
 
       setError(
-        err.message ||
-        translate(
-          language,
-          "common.error"
-        )
+        formatError(err)
       );
+
     } finally {
       setIsSubmitting(false);
     }
   }
 
+
   /*
-   * =========================
+   * ============================================================
    * Back
-   * =========================
+   * ============================================================
    */
 
   function handleBack() {
-    if (isSubmitting) return;
-
-    if (currentIndex === 0) {
-      navigate("/consent");
+    if (
+      isSubmitting ||
+      isStarting
+    ) {
       return;
     }
 
-    setCurrentIndex(
-      (current) => current - 1
-    );
-
-    setAnswer("");
-    setInputMode("idle");
-    setInputType("");
-    setError("");
+    navigate("/consent");
   }
 
+
   /*
-   * =========================
-   * Safety
-   * =========================
+   * ============================================================
+   * Current question
+   * ============================================================
    */
 
-  if (!currentQuestion) {
+  const displayQuestion =
+    conversationStarted
+      ? getQuestionText(
+          currentQuestion
+        )
+      : "What is your main health problem today?";
+
+
+  const hasTouchOptions =
+    conversationStarted &&
+    Array.isArray(
+      currentQuestion?.options
+    ) &&
+    currentQuestion.options.length > 0;
+
+
+  /*
+   * ============================================================
+   * Safety
+   * ============================================================
+   */
+
+  if (
+    conversationStarted &&
+    !currentQuestion
+  ) {
     return null;
   }
 
-  const hasTouchOptions =
-    Array.isArray(currentQuestion.options) &&
-    currentQuestion.options.length > 0;
 
   return (
     <main className="interview">
       <section className="interview__container">
 
-        {/* =========================
-            Header
-            ========================= */}
+        {/* Header */}
 
         <header className="interview__header">
 
@@ -272,7 +581,10 @@ export default function Interview() {
             type="button"
             className="interview__back"
             onClick={handleBack}
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting ||
+              isStarting
+            }
           >
             ←{" "}
             {translate(
@@ -282,16 +594,18 @@ export default function Interview() {
           </button>
 
           <ProgressTracker
-            current={currentIndex + 1}
-            total={interviewScript.length}
+            current={
+              conversationStarted
+                ? questionNumber + 1
+                : 1
+            }
+            total={10}
           />
 
         </header>
 
 
-        {/* =========================
-            Intro
-            ========================= */}
+        {/* Intro */}
 
         <div className="interview__intro">
 
@@ -319,23 +633,18 @@ export default function Interview() {
         </div>
 
 
-        {/* =========================
-            Main Card
-            ========================= */}
+        {/* Main card */}
 
         <section className="interview__card">
 
           <InterviewQuestion
-            question={translate(
-              language,
-              currentQuestion.questionKey
-            )}
+            question={
+              displayQuestion
+            }
           />
 
 
-          {/* =========================
-              Voice Input
-              ========================= */}
+          {/* Voice */}
 
           <div className="interview__voice-section">
 
@@ -347,23 +656,34 @@ export default function Interview() {
             </p>
 
             <VoiceButton
-  state={inputMode}
-  onStart={handleVoiceStart}
-  onResult={handleVoiceResult}
-  onError={(error) => {
-    setInputMode("idle");
-    setInputType("");
-    setError(
-      error.message ||
-        translate(
-          language,
-          "common.error"
-        )
-    );
-  }}
-/>
+              state={
+                isStarting
+                  ? "processing"
+                  : inputMode
+              }
 
-            {inputMode === "listening" && (
+              onStart={
+                handleVoiceStart
+              }
+
+              onResult={
+                handleVoiceResult
+              }
+
+              onError={(voiceError) => {
+                setInputMode("idle");
+                setInputType("");
+
+                setError(
+                  formatError(
+                    voiceError
+                  )
+                );
+              }}
+            />
+
+            {inputMode ===
+              "listening" && (
               <p className="interview__listening">
                 {translate(
                   language,
@@ -375,9 +695,7 @@ export default function Interview() {
           </div>
 
 
-          {/* =========================
-              Touch Options
-              ========================= */}
+          {/* Touch options */}
 
           {hasTouchOptions && (
             <TouchOptions
@@ -385,22 +703,25 @@ export default function Interview() {
                 language,
                 "interview.tap"
               )}
-              options={currentQuestion.options.map(
-                (option) =>
-                  translate(
-                    language,
-                    `interview.${option}`
-                  )
-              )}
-              values={currentQuestion.options}
+
+              options={
+                currentQuestion.options
+              }
+
+              values={
+                currentQuestion.options
+              }
+
               selected={answer}
-              onSelect={handleTouchAnswer}
+
+              onSelect={
+                handleTouchAnswer
+              }
             />
           )}
-          {/* =========================
-              Text Input
-              ONLY for open-ended questions
-              ========================= */}
+
+
+          {/* Text */}
 
           {!hasTouchOptions && (
             <>
@@ -417,12 +738,19 @@ export default function Interview() {
 
                 <textarea
                   value={answer}
-                  onChange={handleTextChange}
+                  onChange={
+                    handleTextChange
+                  }
+
                   placeholder={translate(
                     language,
                     "interview.answerLabel"
                   )}
-                  disabled={isSubmitting}
+
+                  disabled={
+                    isSubmitting ||
+                    isStarting
+                  }
                 />
 
               </div>
@@ -430,9 +758,7 @@ export default function Interview() {
           )}
 
 
-          {/* =========================
-              Answer Preview
-              ========================= */}
+          {/* Answer */}
 
           {answer && (
             <div className="interview__answer">
@@ -445,22 +771,14 @@ export default function Interview() {
               </span>
 
               <p>
-                {hasTouchOptions &&
-                  currentQuestion.options.includes(answer)
-                  ? translate(
-                    language,
-                    `interview.${answer}`
-                  )
-                  : answer}
+                {answer}
               </p>
 
             </div>
           )}
 
 
-          {/* =========================
-              Error
-              ========================= */}
+          {/* Error */}
 
           {error && (
             <p className="interview__error">
@@ -469,32 +787,38 @@ export default function Interview() {
           )}
 
 
-          {/* =========================
-              Continue
-              ========================= */}
+          {/* Continue */}
 
           <div className="interview__actions">
 
             <button
               type="button"
               className="interview__continue"
-              onClick={handleContinue}
-              disabled={isSubmitting}
+              onClick={
+                handleContinue
+              }
+
+              disabled={
+                isSubmitting ||
+                isStarting
+              }
             >
 
-              {isSubmitting
+              {isSubmitting ||
+              isStarting
                 ? translate(
-                  language,
-                  "common.loading"
-                )
+                    language,
+                    "common.loading"
+                  )
                 : translate(
-                  language,
-                  "interview.continue"
-                )}
+                    language,
+                    "interview.continue"
+                  )}
 
-              {!isSubmitting && (
-                <span>→</span>
-              )}
+              {!isSubmitting &&
+                !isStarting && (
+                  <span>→</span>
+                )}
 
             </button>
 
@@ -503,9 +827,7 @@ export default function Interview() {
         </section>
 
 
-        {/* =========================
-            Privacy
-            ========================= */}
+        {/* Privacy */}
 
         <p className="interview__privacy">
           {translate(
@@ -517,13 +839,13 @@ export default function Interview() {
       </section>
 
 
-      {/* =========================
-          Red Flag
-          ========================= */}
+      {/* Red flag */}
 
       <RedFlagOverlay
         flag={state.redFlag}
-        onClose={clearRedFlag}
+        onClose={
+          clearRedFlag
+        }
       />
 
     </main>
