@@ -739,3 +739,4 @@ class AdaptiveQuestioning:
             return str(value)
 
         return None
+    
