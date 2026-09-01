@@ -60,7 +60,7 @@
     "privacy": "Your responses are recorded as part of your clinical history.",
 
     "questions": {
-      "chiefComplaint": "What brings you here today?",
+      "chiefComplaint": "What is your main health problem today?",
       "symptoms": "Please tell us about the symptoms you are experiencing.",
       "duration": "How long have you been experiencing these symptoms?",
       "fever": "Do you have a fever?",

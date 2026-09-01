@@ -540,11 +540,14 @@ export default function Interview() {
    */
 
   const displayQuestion =
-    conversationStarted
-      ? getQuestionText(
-          currentQuestion
-        )
-      : "What is your main health problem today?";
+  conversationStarted
+    ? getQuestionText(
+        currentQuestion
+      )
+    : translate(
+        language,
+        "interview.questions.chiefComplaint"
+      );
 
 
   const hasTouchOptions =
