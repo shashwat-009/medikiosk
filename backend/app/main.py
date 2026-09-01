@@ -19,6 +19,7 @@ from app.api.responses import router as responses_router
 from app.api.summary import router as summary_router
 from app.api.doctors import router as doctors_router
 from app.api.consent import router as consent_router
+from app.api.asr import router as asr_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -56,6 +57,7 @@ app.include_router(responses_router)
 app.include_router(summary_router)
 app.include_router(doctors_router)
 app.include_router(consent_router)
+app.include_router(asr_router)
 
 
 @app.get("/")

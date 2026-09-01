@@ -347,10 +347,21 @@ export default function Interview() {
             </p>
 
             <VoiceButton
-              state={inputMode}
-              onStart={handleVoiceStart}
-              onResult={handleVoiceResult}
-            />
+  state={inputMode}
+  onStart={handleVoiceStart}
+  onResult={handleVoiceResult}
+  onError={(error) => {
+    setInputMode("idle");
+    setInputType("");
+    setError(
+      error.message ||
+        translate(
+          language,
+          "common.error"
+        )
+    );
+  }}
+/>
 
             {inputMode === "listening" && (
               <p className="interview__listening">
