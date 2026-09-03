@@ -36,7 +36,11 @@ class DetectedRedFlag:
 
 
 RED_FLAG_PATTERNS: dict[str, tuple[str, ...]] = {
+    # ==================================================================
+    # SEVERE BREATHING DIFFICULTY
+    # ==================================================================
     "severe_breathing_difficulty": (
+        # English
         "cannot breathe",
         "can't breathe",
         "difficulty breathing",
@@ -44,55 +48,234 @@ RED_FLAG_PATTERNS: dict[str, tuple[str, ...]] = {
         "having difficulty breathing",
         "i cannot breathe",
         "i can't breathe",
+        "i am having difficulty breathing",
+        "i am having severe difficulty breathing",
+        "severe difficulty breathing",
+        "shortness of breath",
+        "severe shortness of breath",
+
+        # Hindi - Hinglish
         "saans nahi aa rahi",
         "saans lene mein dikkat",
         "saans lene me dikkat",
+        "saans lene mein bahut dikkat",
+        "saans lene me bahut dikkat",
         "saans phool rahi",
+        "saans phool rahi hai",
+        "bahut saans phool rahi hai",
+
+        # Hindi - Devanagari
+        "सांस नहीं आ रही",
+        "साँस नहीं आ रही",
+        "सांस लेने में दिक्कत",
+        "साँस लेने में दिक्कत",
+        "सांस लेने में बहुत दिक्कत",
+        "साँस लेने में बहुत दिक्कत",
+        "सांस फूल रही है",
+        "साँस फूल रही है",
+
+        # Bengali
+        "শ্বাস নিতে পারছি না",
+        "শ্বাস নিতে কষ্ট হচ্ছে",
+        "শ্বাস নিতে খুব কষ্ট হচ্ছে",
+        "শ্বাসকষ্ট হচ্ছে",
+        "খুব শ্বাসকষ্ট হচ্ছে",
+
+        # Marathi
+        "श्वास घेता येत नाही",
+        "श्वास घेण्यास त्रास होत आहे",
+        "श्वास घेण्यास खूप त्रास होत आहे",
+        "श्वास घेण्यास अडचण होत आहे",
+        "खूप श्वास घेण्यास त्रास होत आहे",
     ),
+
+    # ==================================================================
+    # LOSS OF CONSCIOUSNESS
+    # ==================================================================
     "loss_of_consciousness": (
+        # English
         "lost consciousness",
         "passed out",
         "pass out",
         "unconscious",
         "i was unconscious",
         "i became unconscious",
+        "i fainted",
+        "fainted",
+
+        # Hindi - Hinglish
         "behosh ho gaya",
         "behosh ho gayi",
         "behosh ho gaya tha",
         "behosh ho gayi thi",
+        "main behosh ho gaya",
+        "main behosh ho gayi",
+        "hosh kho diya",
+
+        # Hindi - Devanagari
+        "बेहोश हो गया",
+        "बेहोश हो गई",
+        "बेहोश हो गया था",
+        "बेहोश हो गई थी",
+        "मैं बेहोश हो गया",
+        "मैं बेहोश हो गई",
+        "होश खो दिया",
+
+        # Bengali
+        "অজ্ঞান হয়ে গিয়েছিলাম",
+        "অজ্ঞান হয়ে গিয়েছিলাম",
+        "আমি অজ্ঞান হয়ে গিয়েছিলাম",
+        "জ্ঞান হারিয়েছিলাম",
+        "জ্ঞান হারিয়ে ফেলেছিলাম",
+
+        # Marathi
+        "बेशुद्ध झालो",
+        "बेशुद्ध झाले",
+        "बेशुद्ध झालो होतो",
+        "बेशुद्ध झाले होते",
+        "मी बेशुद्ध झालो",
+        "मी बेशुद्ध झाले",
+        "शुद्ध हरपली",
     ),
+
+    # ==================================================================
+    # SEVERE CHEST PAIN
+    # ==================================================================
     "severe_chest_pain": (
+        # English
         "severe chest pain",
         "very severe chest pain",
         "chest pain is severe",
         "i have severe chest pain",
+        "extreme chest pain",
+        "very bad chest pain",
+        "unbearable chest pain",
+
+        # Hindi - Hinglish
         "bahut tez seene ka dard",
         "bahut zyada seene mein dard",
         "bahut zyada seene me dard",
+        "seene mein bahut tez dard",
+        "seene me bahut tez dard",
+        "seene ka bahut zyada dard",
+
+        # Hindi - Devanagari
+        "बहुत तेज सीने का दर्द",
+        "बहुत ज्यादा सीने में दर्द",
+        "सीने में बहुत तेज दर्द",
+        "सीने में बहुत ज्यादा दर्द",
+        "सीने का बहुत ज्यादा दर्द",
+
+        # Bengali
+        "বুকে খুব তীব্র ব্যথা",
+        "বুকে প্রচণ্ড ব্যথা",
+        "বুকে খুব বেশি ব্যথা",
+        "বুকে অসহ্য ব্যথা",
+        "তীব্র বুকে ব্যথা",
+
+        # Marathi
+        "छातीत खूप तीव्र वेदना",
+        "छातीत खूप जास्त वेदना",
+        "छातीत तीव्र वेदना",
+        "छातीत असह्य वेदना",
+        "छातीत खूप दुखत आहे",
     ),
+
+    # ==================================================================
+    # SEVERE BLEEDING
+    # ==================================================================
     "severe_bleeding": (
+        # English
         "heavy bleeding",
         "bleeding heavily",
         "bleeding a lot",
         "i am bleeding heavily",
         "i am bleeding a lot",
+        "severe bleeding",
+        "blood is pouring",
+
+        # Hindi - Hinglish
         "bahut zyada khoon",
         "bahut khoon beh raha",
         "khoon bahut beh raha",
+        "bahut zyada khoon beh raha",
+        "bahut khoon nikal raha",
+
+        # Hindi - Devanagari
+        "बहुत ज्यादा खून",
+        "बहुत खून बह रहा",
+        "खून बहुत बह रहा",
+        "बहुत ज्यादा खून बह रहा",
+        "बहुत खून निकल रहा",
+
+        # Bengali
+        "অনেক রক্তপাত হচ্ছে",
+        "খুব বেশি রক্তপাত হচ্ছে",
+        "অনেক রক্ত বের হচ্ছে",
+        "খুব বেশি রক্ত বের হচ্ছে",
+        "প্রচুর রক্তপাত হচ্ছে",
+
+        # Marathi
+        "खूप रक्तस्राव होत आहे",
+        "खूप जास्त रक्तस्राव होत आहे",
+        "खूप रक्त वाहत आहे",
+        "खूप जास्त रक्त वाहत आहे",
+        "प्रचंड रक्तस्राव होत आहे",
     ),
-"sudden_weakness_or_paralysis": (
-    "sudden weakness",
-    "sudden paralysis",
-    "one side is weak",
-    "one side weakness",
-    "suddenly weak",
-    "suddenly have weakness on one side",
-    "weakness on one side",
-    "weak on one side",
-    "ek taraf kamzori",
-    "ek side kamzor",
-    "achanak kamzori",
-),
+
+    # ==================================================================
+    # SUDDEN WEAKNESS / PARALYSIS
+    # ==================================================================
+    "sudden_weakness_or_paralysis": (
+        # English
+        "sudden weakness",
+        "sudden paralysis",
+        "one side is weak",
+        "one side weakness",
+        "suddenly weak",
+        "suddenly have weakness on one side",
+        "weakness on one side",
+        "weak on one side",
+        "sudden numbness",
+        "one side is numb",
+        "one side numbness",
+
+        # Hindi - Hinglish
+        "ek taraf kamzori",
+        "ek side kamzor",
+        "achanak kamzori",
+        "ek taraf achanak kamzori",
+        "ek side achanak kamzor",
+        "ek taraf sunn",
+        "ek side sunn",
+        "haath pair mein achanak kamzori",
+
+        # Hindi - Devanagari
+        "एक तरफ कमजोरी",
+        "एक तरफ़ कमजोरी",
+        "एक साइड कमजोर",
+        "अचानक कमजोरी",
+        "एक तरफ अचानक कमजोरी",
+        "एक तरफ सुन्न",
+        "एक साइड सुन्न",
+        "हाथ पैर में अचानक कमजोरी",
+
+        # Bengali
+        "হঠাৎ দুর্বলতা",
+        "হঠাৎ এক পাশ দুর্বল",
+        "শরীরের এক পাশ দুর্বল",
+        "এক পাশ অবশ",
+        "হঠাৎ পক্ষাঘাত",
+        "এক পাশে হঠাৎ দুর্বলতা",
+
+        # Marathi
+        "अचानक अशक्तपणा",
+        "अचानक कमजोरी",
+        "शरीराची एक बाजू कमजोर",
+        "एक बाजू सुन्न",
+        "अचानक पक्षाघात",
+        "एका बाजूला अचानक कमजोरी",
+    ),
 }
 
 

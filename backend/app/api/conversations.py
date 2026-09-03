@@ -237,10 +237,25 @@ def serialize_result(result):
         "next_question": serialize_question(result.next_question),
         "completed": result.completed,
         "red_flag": (
-            result.red_flag.model_dump()
-            if result.red_flag is not None
+    {
+        "detected": result.red_flag.detected,
+        "category": result.red_flag.category,
+        "matched_pattern": result.red_flag.matched_pattern,
+        "flag_id": result.red_flag.flag_id,
+        "priority": (
+            result.red_flag.priority.value
+            if result.red_flag.priority is not None
             else None
         ),
+        "matched_fields": list(
+            result.red_flag.matched_fields
+        ),
+        "matched_text": result.red_flag.matched_text,
+        "explanation": result.red_flag.explanation,
+    }
+    if result.red_flag is not None
+    else None
+),
     }
 
 

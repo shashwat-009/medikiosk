@@ -844,12 +844,11 @@ export default function Interview() {
 
       {/* Red flag */}
 
-      <RedFlagOverlay
-        flag={state.redFlag}
-        onClose={
-          clearRedFlag
-        }
-      />
+     <RedFlagOverlay
+  flag={state.redFlag}
+  onClose={clearRedFlag}
+  language={language}
+/>
 
     </main>
   );
