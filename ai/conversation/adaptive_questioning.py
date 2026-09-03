@@ -2,8 +2,8 @@
 Deterministic adaptive questioning for the MediKiosk conversation layer.
 
 Responsibility:
-    Given a complaint, ontology, question bank, dialogue state, and
-    requested language, select exactly one unanswered question.
+    Given a complaint, ontology, question bank, dialogue state,
+    and requested language, select exactly one unanswered question.
 
 This module deliberately:
     - does not call an LLM
@@ -40,6 +40,10 @@ class AdaptiveQuestioning:
 
     Ontology, Question Bank, and Dialogue State objects are injected so
     this module does not duplicate their responsibilities.
+
+    A field_provider may optionally be supplied for domain-specific
+    history modes such as AYUSH. When present, its ``fields`` property
+    is used instead of the standard complaint ontology fields.
     """
 
     def __init__(
@@ -47,10 +51,13 @@ class AdaptiveQuestioning:
         ontology: Any,
         question_bank: Any,
         dialogue_state: Any,
+        *,
+        field_provider: Any | None = None,
     ) -> None:
         self.ontology = ontology
         self.question_bank = question_bank
         self.dialogue_state = dialogue_state
+        self.field_provider = field_provider
 
     # ------------------------------------------------------------------
     # Public API
@@ -67,9 +74,9 @@ class AdaptiveQuestioning:
         Selection order:
             1. Resolve complaint.
             2. Resolve requested language.
-            3. Retrieve ontology fields.
+            3. Retrieve ontology/domain fields.
             4. Determine collected fields from Dialogue State.
-            5. Preserve ontology/question-bank ordering.
+            5. Preserve field/question ordering.
             6. Select the first field that is not collected.
             7. Select the first question for that field in the
                requested language.
@@ -134,6 +141,7 @@ class AdaptiveQuestioning:
 
         Returns None when no suitable question exists.
         """
+
         return self.get_next_question(
             complaint=complaint,
             language=language,
@@ -277,14 +285,30 @@ class AdaptiveQuestioning:
         return None
 
     # ------------------------------------------------------------------
-    # Ontology
+    # Ontology / Domain Fields
     # ------------------------------------------------------------------
 
     def _get_relevant_fields(
         self,
         complaint: Any,
     ) -> list[Any]:
-        """Retrieve ontology fields using the existing ontology APIs."""
+        """
+        Retrieve fields from the configured domain provider.
+
+        If a field_provider was supplied, it takes precedence over the
+        standard complaint ontology. This allows AYUSH mode to reuse
+        the same deterministic adaptive-questioning engine.
+        """
+
+        if self.field_provider is not None:
+            fields = getattr(
+                self.field_provider,
+                "fields",
+                None,
+            )
+
+            if fields is not None:
+                return list(fields)
 
         ontology = self.ontology
 
@@ -739,4 +763,3 @@ class AdaptiveQuestioning:
             return str(value)
 
         return None
-    

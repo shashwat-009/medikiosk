@@ -7,6 +7,7 @@ Coordinates:
     Question Bank
     AdaptiveQuestioning
     RedFlagDetector
+    Optional AYUSH history domain
 
 This module does not:
     - perform diagnosis
@@ -25,6 +26,7 @@ from ai.conversation.adaptive_questioning import (
     AdaptiveQuestioning,
     NextQuestionResult,
 )
+from ai.conversation.ayush_mode import AyushMode
 from ai.conversation.dialogue_state import (
     DialogueState,
     DialogueStateSnapshot,
@@ -44,7 +46,7 @@ from ai.conversation.red_flags import (
 
 
 class _QuestionBankAdapter:
-    """Adapter exposing the question-bank API expected by AdaptiveQuestioning."""
+    """Adapter exposing the standard question-bank API."""
 
     @staticmethod
     def get_questions_for_field(
@@ -59,11 +61,40 @@ class _QuestionBankAdapter:
         )
 
 
+class _AyushQuestionBankAdapter:
+    """
+    Adapter exposing AYUSH questions through the interface expected by
+    AdaptiveQuestioning.
+
+    AYUSH questions are currently deterministic and English-only.
+    """
+
+    def __init__(self, ayush_mode: AyushMode) -> None:
+        self.ayush_mode = ayush_mode
+
+    def get_questions_for_field(
+        self,
+        complaint: Any,
+        field: Any,
+    ) -> tuple[Any, ...]:
+        field_id = (
+            getattr(field, "identifier", None)
+            or getattr(field, "field_id", None)
+            or str(field)
+        )
+
+        return tuple(
+            question
+            for question in self.ayush_mode.questions()
+            if question.field_id == str(field_id)
+        )
+
+
 @dataclass(frozen=True)
 class ConversationResult:
     """Result after processing one patient answer."""
 
-    next_question: Question | None
+    next_question: Any | None
     red_flag: DetectedRedFlag | None
     completed: bool
 
@@ -72,8 +103,17 @@ class DialogueManager:
     """
     Orchestrates one deterministic clinical interview.
 
-    The manager owns the runtime state and delegates question selection
-    and red-flag detection to their dedicated components.
+    Standard mode uses:
+        DialogueState
+        OntologyRegistry
+        QuestionBank
+
+    AYUSH mode can additionally provide:
+        AyushMode
+
+    DialogueManager remains responsible for runtime conversation flow,
+    while AdaptiveQuestioning remains responsible for deterministic
+    next-question selection.
     """
 
     def __init__(
@@ -82,13 +122,23 @@ class DialogueManager:
         *,
         language: QuestionLanguage | str = QuestionLanguage.ENGLISH,
         red_flag_detector: RedFlagDetector | None = None,
+        ayush_mode: AyushMode | None = None,
     ) -> None:
         if not isinstance(state, DialogueState):
             raise TypeError(
                 "state must be a DialogueState instance."
             )
 
+        if ayush_mode is not None and not isinstance(
+            ayush_mode,
+            AyushMode,
+        ):
+            raise TypeError(
+                "ayush_mode must be an AyushMode instance."
+            )
+
         self.state = state
+        self.ayush_mode = ayush_mode
 
         self.language = (
             language
@@ -102,10 +152,20 @@ class DialogueManager:
             else RedFlagDetector()
         )
 
+        if self.ayush_mode is not None:
+            question_bank = _AyushQuestionBankAdapter(
+                self.ayush_mode
+            )
+            field_provider = self.ayush_mode
+        else:
+            question_bank = _QuestionBankAdapter()
+            field_provider = None
+
         self._questioning = AdaptiveQuestioning(
             ontology=OntologyRegistry,
-            question_bank=_QuestionBankAdapter(),
+            question_bank=question_bank,
             dialogue_state=self.state,
+            field_provider=field_provider,
         )
 
     @classmethod
@@ -115,8 +175,14 @@ class DialogueManager:
         *,
         language: QuestionLanguage | str = QuestionLanguage.ENGLISH,
         red_flag_detector: RedFlagDetector | None = None,
+        ayush_mode: AyushMode | None = None,
     ) -> "DialogueManager":
-        """Create a new conversation for a supported complaint."""
+        """
+        Create a new conversation for a supported complaint.
+
+        ``ayush_mode`` is optional. Existing callers that do not provide
+        it continue to use the standard clinical history flow.
+        """
 
         state = DialogueState.create(complaint)
 
@@ -124,27 +190,30 @@ class DialogueManager:
             state,
             language=language,
             red_flag_detector=red_flag_detector,
+            ayush_mode=ayush_mode,
         )
 
     # ------------------------------------------------------------------
     # Question flow
     # ------------------------------------------------------------------
 
-    def start(self) -> Question | None:
+    def start(self) -> Any | None:
         """Start the interview and return the first question."""
 
         return self.get_next_question()
 
-    def get_next_question(self) -> Question | None:
+    def get_next_question(self) -> Any | None:
         """
         Get the next question in the configured language.
 
-        AdaptiveQuestioning chooses the clinical field.
-        QuestionBank supplies the actual localized question.
+        AdaptiveQuestioning chooses the field.
+        The configured question source supplies the question.
         """
 
         result: NextQuestionResult = (
-            self._questioning.get_next_question()
+            self._questioning.get_next_question(
+                language=self.language,
+            )
         )
 
         if result.question is None:
@@ -152,38 +221,51 @@ class DialogueManager:
 
         question = result.question
 
-        if not isinstance(question, Question):
-            raise TypeError(
-                "AdaptiveQuestioning returned an invalid Question."
+        # Standard QuestionBank objects.
+        if isinstance(question, Question):
+            if question.language == self.language:
+                self.state.set_current_question(
+                    question.question_id
+                )
+                return question
+
+            localized_questions = get_questions_for_field(
+                self.state.complaint,
+                question.field_id,
+                language=self.language,
             )
 
-        if question.language == self.language:
+            if not localized_questions:
+                return None
+
+            localized_question = localized_questions[0]
+
             self.state.set_current_question(
-                question.question_id
+                localized_question.question_id
             )
-            return question
 
-        localized_questions = get_questions_for_field(
-            self.state.complaint,
-            question.field_id,
-            language=self.language,
+            return localized_question
+
+        # AYUSH questions currently do not have QuestionLanguage.
+        question_id = getattr(
+            question,
+            "id",
+            None,
         )
 
-        if not localized_questions:
-            return None
+        if question_id is not None:
+            self.state.set_current_question(
+                str(question_id)
+            )
 
-        localized_question = localized_questions[0]
-
-        self.state.set_current_question(
-            localized_question.question_id
-        )
-
-        return localized_question
+        return question
 
     def get_next_question_result(self) -> NextQuestionResult:
         """Return the complete AdaptiveQuestioning result."""
 
-        return self._questioning.get_next_question()
+        return self._questioning.get_next_question(
+            language=self.language,
+        )
 
     # ------------------------------------------------------------------
     # Answer flow
@@ -219,6 +301,13 @@ class DialogueManager:
         )
 
         self.state.record_answer(answer)
+
+        # Keep AYUSH-specific values synchronized when AYUSH mode is active.
+        if self.ayush_mode is not None:
+            self.ayush_mode.update_field(
+                field_id,
+                value,
+            )
 
         if text_for_red_flags is None and isinstance(value, str):
             text_for_red_flags = value
@@ -342,6 +431,12 @@ class DialogueManager:
         """Fields not yet collected."""
 
         return self.state.missing_fields()
+
+    @property
+    def is_ayush(self) -> bool:
+        """Return True when AYUSH mode is attached."""
+
+        return self.ayush_mode is not None
 
     # ------------------------------------------------------------------
     # Internal
