@@ -71,6 +71,7 @@ class _AyushQuestionBankAdapter:
 
     def __init__(self, ayush_mode: AyushMode) -> None:
         self.ayush_mode = ayush_mode
+        
 
     def get_questions_for_field(
         self,
@@ -139,6 +140,10 @@ class DialogueManager:
 
         self.state = state
         self.ayush_mode = ayush_mode
+        if self.ayush_mode is not None:
+            self.state.allowed_fields = tuple(
+                self.ayush_mode.fields
+                )
 
         self.language = (
             language

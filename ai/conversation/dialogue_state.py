@@ -26,6 +26,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
+from ai.conversation.ontology import OntologyRegistry
+
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -41,7 +43,7 @@ class UnknownComplaintError(DialogueStateError):
 
 
 class UnknownFieldError(DialogueStateError):
-    """Raised when a field does not belong to the current complaint."""
+    """Raised when a field does not belong to the current interview."""
 
 
 class InvalidAnswerError(DialogueStateError):
@@ -49,10 +51,8 @@ class InvalidAnswerError(DialogueStateError):
 
 
 # ---------------------------------------------------------------------------
-# Ontology field registry
+# Standard ontology field registry
 # ---------------------------------------------------------------------------
-
-from ai.conversation.ontology import OntologyRegistry
 
 
 COMPLAINT_FIELDS: dict[str, tuple[str, ...]] = {
@@ -65,6 +65,7 @@ COMPLAINT_FIELDS: dict[str, tuple[str, ...]] = {
 
 
 SUPPORTED_COMPLAINTS = tuple(COMPLAINT_FIELDS.keys())
+
 
 # ---------------------------------------------------------------------------
 # Data structures
@@ -119,9 +120,7 @@ class DialogueTurn:
 
 @dataclass(frozen=True)
 class DialogueStateSnapshot:
-    """
-    Immutable snapshot of the current interview state.
-    """
+    """Immutable snapshot of the current interview state."""
 
     complaint: str
     clinical_fields: Mapping[str, ClinicalFieldValue]
@@ -129,6 +128,7 @@ class DialogueStateSnapshot:
     turns: tuple[DialogueTurn, ...]
     current_question_id: Optional[str]
     previous_question_id: Optional[str]
+    allowed_fields: Optional[tuple[str, ...]] = None
 
 
 # ---------------------------------------------------------------------------
@@ -142,9 +142,23 @@ class DialogueState:
     Current memory/state of a MediKiosk clinical interview.
 
     DialogueState stores information; it does not decide what happens next.
+
+    ``allowed_fields`` is optional.
+
+    - Standard mode:
+        allowed_fields=None
+        -> fields are taken from the standard complaint ontology.
+
+    - Domain-specific mode such as AYUSH:
+        allowed_fields=(...)
+        -> the supplied domain fields become valid for this state.
+
+    This keeps field validation strict while allowing multiple clinical
+    history domains to use the same DialogueState implementation.
     """
 
     complaint: str
+
     clinical_fields: dict[str, ClinicalFieldValue] = field(
         default_factory=dict
     )
@@ -154,23 +168,46 @@ class DialogueState:
     current_question_id: Optional[str] = None
     previous_question_id: Optional[str] = None
 
+    # Optional domain-specific field registry.
+    #
+    # None means standard complaint ontology.
+    allowed_fields: Optional[tuple[str, ...]] = None
+
     # ------------------------------------------------------------------
     # Construction
     # ------------------------------------------------------------------
 
     @classmethod
-    def create(cls, complaint: str) -> "DialogueState":
+    def create(
+        cls,
+        complaint: str,
+        *,
+        allowed_fields: Optional[tuple[str, ...]] = None,
+    ) -> "DialogueState":
         """
         Create an empty state for a supported complaint.
 
-        All ontology fields initially remain missing.
+        ``allowed_fields`` can be supplied by a domain-specific history
+        provider such as AYUSH.
+
+        Standard behavior is preserved when it is omitted.
         """
 
         complaint_key = normalize_complaint(complaint)
 
         validate_complaint(complaint_key)
 
-        return cls(complaint=complaint_key)
+        normalized_allowed_fields: Optional[tuple[str, ...]] = None
+
+        if allowed_fields is not None:
+            normalized_allowed_fields = normalize_allowed_fields(
+                allowed_fields
+            )
+
+        return cls(
+            complaint=complaint_key,
+            allowed_fields=normalized_allowed_fields,
+        )
 
     # ------------------------------------------------------------------
     # Field information
@@ -178,7 +215,15 @@ class DialogueState:
 
     @property
     def relevant_fields(self) -> tuple[str, ...]:
-        """Return ontology fields relevant to the current complaint."""
+        """
+        Return fields relevant to the current interview.
+
+        If a domain-specific field registry was supplied, use it.
+        Otherwise use the standard complaint ontology.
+        """
+
+        if self.allowed_fields is not None:
+            return self.allowed_fields
 
         return COMPLAINT_FIELDS[self.complaint]
 
@@ -186,7 +231,7 @@ class DialogueState:
         """
         Return fields that currently contain a valid stored value.
 
-        Ordering follows ontology field ordering.
+        Ordering follows relevant field ordering.
         """
 
         return tuple(
@@ -199,7 +244,7 @@ class DialogueState:
         """
         Return relevant fields that have not yet been collected.
 
-        Ordering follows ontology field ordering.
+        Ordering follows relevant field ordering.
         """
 
         return tuple(
@@ -212,7 +257,7 @@ class DialogueState:
         """Return True if the field currently has a stored value."""
 
         field_key = normalize_field(field_id)
-        validate_field(self.complaint, field_key)
+        validate_field_for_state(self, field_key)
 
         return field_key in self.clinical_fields
 
@@ -220,7 +265,7 @@ class DialogueState:
         """Return True if the field is relevant but has no value."""
 
         field_key = normalize_field(field_id)
-        validate_field(self.complaint, field_key)
+        validate_field_for_state(self, field_key)
 
         return field_key not in self.clinical_fields
 
@@ -234,7 +279,7 @@ class DialogueState:
         """
 
         field_key = normalize_field(field_id)
-        validate_field(self.complaint, field_key)
+        validate_field_for_state(self, field_key)
 
         if field_key not in self.clinical_fields:
             raise DialogueStateError(
@@ -263,7 +308,7 @@ class DialogueState:
         """
 
         field_key = normalize_field(field_id)
-        validate_field(self.complaint, field_key)
+        validate_field_for_state(self, field_key)
         validate_value(value)
 
         field_value = ClinicalFieldValue(
@@ -289,12 +334,6 @@ class DialogueState:
         clinical field.
 
         No inference is performed.
-
-        Example:
-            field_id="duration", value="3 days"
-
-        updates ONLY:
-            duration = "3 days"
         """
 
         if not isinstance(answer, PatientAnswer):
@@ -303,7 +342,7 @@ class DialogueState:
             )
 
         field_key = normalize_field(answer.field_id)
-        validate_field(self.complaint, field_key)
+        validate_field_for_state(self, field_key)
         validate_value(answer.value)
 
         self.answers.append(
@@ -375,19 +414,19 @@ class DialogueState:
 
     @property
     def total_fields(self) -> int:
-        """Number of ontology fields relevant to the complaint."""
+        """Number of fields relevant to the current interview."""
 
         return len(self.relevant_fields)
 
     @property
     def collected_field_count(self) -> int:
-        """Number of currently known ontology fields."""
+        """Number of currently known fields."""
 
         return len(self.collected_fields())
 
     @property
     def missing_field_count(self) -> int:
-        """Number of currently missing ontology fields."""
+        """Number of currently missing fields."""
 
         return len(self.missing_fields())
 
@@ -397,10 +436,10 @@ class DialogueState:
         Return deterministic completion ratio.
 
         Returns:
-            0.0 for an empty ontology.
+            0.0 for an empty field set.
             Otherwise collected_fields / total_fields.
 
-        This represents ontology-field coverage only. It does NOT indicate
+        This represents field coverage only. It does NOT indicate
         clinical completeness or diagnostic completeness.
         """
 
@@ -420,9 +459,7 @@ class DialogueState:
     # ------------------------------------------------------------------
 
     def snapshot(self) -> DialogueStateSnapshot:
-        """
-        Return an immutable snapshot of the current state.
-        """
+        """Return an immutable snapshot of the current state."""
 
         return DialogueStateSnapshot(
             complaint=self.complaint,
@@ -431,6 +468,7 @@ class DialogueState:
             turns=tuple(self.turns),
             current_question_id=self.current_question_id,
             previous_question_id=self.previous_question_id,
+            allowed_fields=self.allowed_fields,
         )
 
 
@@ -439,10 +477,17 @@ class DialogueState:
 # ---------------------------------------------------------------------------
 
 
-def create_dialogue_state(complaint: str) -> DialogueState:
+def create_dialogue_state(
+    complaint: str,
+    *,
+    allowed_fields: Optional[tuple[str, ...]] = None,
+) -> DialogueState:
     """Create an initial Dialogue State."""
 
-    return DialogueState.create(complaint)
+    return DialogueState.create(
+        complaint,
+        allowed_fields=allowed_fields,
+    )
 
 
 def update_clinical_field(
@@ -578,6 +623,31 @@ def normalize_field(field_id: str) -> str:
     return value
 
 
+def normalize_allowed_fields(
+    allowed_fields: tuple[str, ...],
+) -> tuple[str, ...]:
+    """
+    Normalize and validate a domain-specific field collection.
+
+    Duplicate fields are removed while preserving the supplied order.
+    """
+
+    if not isinstance(allowed_fields, (tuple, list)):
+        raise DialogueStateError(
+            "allowed_fields must be a tuple or list of field identifiers."
+        )
+
+    normalized: list[str] = []
+
+    for field_id in allowed_fields:
+        field_key = normalize_field(field_id)
+
+        if field_key not in normalized:
+            normalized.append(field_key)
+
+    return tuple(normalized)
+
+
 def validate_complaint(complaint: str) -> None:
     """Validate that a complaint is supported."""
 
@@ -591,13 +661,37 @@ def validate_field(
     complaint: str,
     field_id: str,
 ) -> None:
-    """Validate that a field belongs to the current complaint."""
+    """
+    Validate that a field belongs to the standard complaint ontology.
+
+    Kept as a public helper for backward compatibility.
+    """
 
     validate_complaint(complaint)
 
     if field_id not in COMPLAINT_FIELDS[complaint]:
         raise UnknownFieldError(
             f"Unknown field {field_id!r} for complaint {complaint!r}"
+        )
+
+
+def validate_field_for_state(
+    state: DialogueState,
+    field_id: str,
+) -> None:
+    """
+    Validate a field against the current DialogueState's field registry.
+
+    Standard states use the complaint ontology.
+    Domain-specific states use allowed_fields.
+    """
+
+    validate_complaint(state.complaint)
+
+    if field_id not in state.relevant_fields:
+        raise UnknownFieldError(
+            f"Unknown field {field_id!r} for complaint "
+            f"{state.complaint!r}"
         )
 
 
@@ -630,6 +724,8 @@ __all__ = [
     "UnknownComplaintError",
     "UnknownFieldError",
     "InvalidAnswerError",
+    "COMPLAINT_FIELDS",
+    "SUPPORTED_COMPLAINTS",
     "create_dialogue_state",
     "update_clinical_field",
     "record_patient_answer",
@@ -637,5 +733,10 @@ __all__ = [
     "get_missing_fields",
     "get_field_value",
     "get_completion_ratio",
-    "SUPPORTED_COMPLAINTS",
+    "normalize_complaint",
+    "normalize_field",
+    "validate_complaint",
+    "validate_field",
+    "validate_field_for_state",
+    "validate_value",
 ]
