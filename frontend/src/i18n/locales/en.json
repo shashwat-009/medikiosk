@@ -111,6 +111,20 @@
   "note": "You may now speak with your healthcare team."
 },
 
+"mode": {
+  "eyebrow": "CONSULTATION MODE",
+  "title": "Choose your consultation mode",
+  "description": "Choose the consultation approach you would like to use for your health history.",
+  "allopathy": {
+    "title": "Allopathy",
+    "description": "Standard clinical history based on your symptoms and chief complaint."
+  },
+  "ayush": {
+    "title": "Ayurveda / AYUSH",
+    "description": "AYUSH-oriented history including Prakriti, Vikriti, Ahara, Vihara and related assessment fields."
+  }
+},
+
   "doctor": {
     "login": "Doctor login",
     "dashboard": "Doctor dashboard",

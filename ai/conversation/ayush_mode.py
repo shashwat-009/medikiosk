@@ -7,7 +7,7 @@ conversation engine.
 Responsibilities:
     - Identify AYUSH mode.
     - Define AYUSH history-taking sections.
-    - Provide deterministic AYUSH question specifications.
+    - Provide deterministic multilingual AYUSH question specifications.
     - Track AYUSH-specific collected information.
     - Report deterministic progress/completion.
     - Validate AYUSH field identifiers.
@@ -28,6 +28,12 @@ The existing conversation engine should remain responsible for:
     - conversation history
     - red flags
     - structured clinical output
+
+Supported languages:
+    - en: English
+    - hi: Hindi
+    - bn: Bengali
+    - mr: Marathi
 """
 
 from __future__ import annotations
@@ -95,10 +101,22 @@ class AyushField(StrEnum):
     GENERAL_ALLERGIES = "general_allergies"
 
 
+SUPPORTED_LANGUAGES: Final[tuple[str, ...]] = (
+    "en",
+    "hi",
+    "bn",
+    "mr",
+)
+
+
 class AyushQuestion(BaseModel):
     """
-    Deterministic question specification consumed by the existing
-    question/adaptive-questioning layer.
+    Deterministic multilingual question specification consumed by the
+    existing question/adaptive-questioning layer.
+
+    The canonical English question is stored in ``text``.
+    Additional supported-language translations are stored in
+    ``translations``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -107,6 +125,7 @@ class AyushQuestion(BaseModel):
     field_id: str
     section: AyushSection
     text: str
+    translations: Mapping[str, str] = Field(default_factory=dict)
     required: bool = True
     order: int = Field(ge=0)
 
@@ -116,6 +135,38 @@ class AyushQuestion(BaseModel):
         if not value.strip():
             raise ValueError("Question values cannot be empty.")
         return value
+
+    @field_validator("translations")
+    @classmethod
+    def validate_translations(
+        cls,
+        value: Mapping[str, str],
+    ) -> Mapping[str, str]:
+        for language, text in value.items():
+            if language not in SUPPORTED_LANGUAGES:
+                raise ValueError(
+                    f"Unsupported AYUSH question language: {language!r}"
+                )
+
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError(
+                    f"Translation for {language!r} cannot be empty."
+                )
+
+        return dict(value)
+
+    def text_for(self, language: str) -> str:
+        """
+        Return the question text for the requested language.
+
+        English is the canonical fallback when a translation is unavailable.
+        """
+        language = language.strip().lower()
+
+        if language == "en":
+            return self.text
+
+        return self.translations.get(language, self.text)
 
 
 class AyushFieldValue(BaseModel):
@@ -204,20 +255,39 @@ def _question(
     field_id: str,
     section: AyushSection,
     text: str,
+    *,
+    hi: str,
+    bn: str,
+    mr: str,
 ) -> AyushQuestion:
-    """Create a deterministic question specification."""
+    """Create a multilingual deterministic question specification."""
     return AyushQuestion(
         id=f"ayush.{section.value}.{number}",
         field_id=field_id,
         section=section,
         text=text,
+        translations={
+            "hi": hi,
+            "bn": bn,
+            "mr": mr,
+        },
         order=number,
     )
 
 
+# ---------------------------------------------------------------------------
+# Multilingual AYUSH question bank
+# ---------------------------------------------------------------------------
+#
+# English is the canonical source text.
+# Hindi, Bengali and Marathi translations preserve AYUSH terminology where
+# appropriate so that clinical/domain terms remain recognizable.
+#
 # The questions deliberately ask for history rather than making clinical
 # interpretations. The existing adaptive-questioning module decides when
 # an available question should actually be presented.
+# ---------------------------------------------------------------------------
+
 AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
     _question(
         1,
@@ -225,6 +295,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe the person's usual body constitution or Prakriti, "
         "if this has previously been assessed.",
+        hi=(
+            "कृपया व्यक्ति की सामान्य शारीरिक प्रकृति या प्रकृति "
+            "(Prakriti) का वर्णन करें, यदि इसका पहले आकलन किया गया है।"
+        ),
+        bn=(
+            "ব্যক্তির স্বাভাবিক শারীরিক গঠন বা প্রকৃতি (Prakriti) সম্পর্কে "
+            "বর্ণনা করুন, যদি এটি আগে মূল্যায়ন করা হয়ে থাকে।"
+        ),
+        mr=(
+            "व्यक्तीची नेहमीची शारीरिक प्रकृती (Prakriti) कशी आहे ते "
+            "सांगा, जर तिचे यापूर्वी मूल्यांकन केले गेले असेल."
+        ),
     ),
     _question(
         2,
@@ -232,6 +314,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe any current changes from the person's usual state "
         "that have been observed or previously assessed.",
+        hi=(
+            "व्यक्ति की सामान्य स्थिति में वर्तमान में देखे गए या पहले "
+            "आकलन किए गए किसी भी बदलाव का वर्णन करें।"
+        ),
+        bn=(
+            "ব্যক্তির স্বাভাবিক অবস্থার তুলনায় বর্তমানে দেখা দেওয়া বা আগে "
+            "মূল্যায়ন করা হয়েছে এমন কোনো পরিবর্তন সম্পর্কে বর্ণনা করুন।"
+        ),
+        mr=(
+            "व्यक्तीच्या नेहमीच्या स्थितीपेक्षा सध्या दिसून येणारे किंवा "
+            "पूर्वी मूल्यांकन केलेले कोणतेही बदल सांगा."
+        ),
     ),
     _question(
         3,
@@ -239,6 +333,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please provide the available assessment of Sara or tissue quality, "
         "if previously assessed.",
+        hi=(
+            "यदि पहले आकलन किया गया है, तो सारा (Sara) या ऊतक की गुणवत्ता "
+            "से संबंधित उपलब्ध आकलन बताएं।"
+        ),
+        bn=(
+            "যদি আগে মূল্যায়ন করা হয়ে থাকে, তাহলে সারা (Sara) বা "
+            "টিস্যুর গুণমান সম্পর্কে উপলব্ধ মূল্যায়ন জানান।"
+        ),
+        mr=(
+            "यापूर्वी मूल्यांकन केले असल्यास, सारा (Sara) किंवा ऊतकांच्या "
+            "गुणवत्तेबाबत उपलब्ध मूल्यांकन सांगा."
+        ),
     ),
     _question(
         4,
@@ -246,6 +352,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please provide the available assessment of Samhanana or body "
         "compactness, if previously assessed.",
+        hi=(
+            "यदि पहले आकलन किया गया है, तो संहनन (Samhanana) या शरीर की "
+            "संघटनात्मक दृढ़ता से संबंधित उपलब्ध आकलन बताएं।"
+        ),
+        bn=(
+            "যদি আগে মূল্যায়ন করা হয়ে থাকে, তাহলে সংহনন (Samhanana) বা "
+            "শরীরের গঠনগত দৃঢ়তা সম্পর্কে উপলব্ধ মূল্যায়ন জানান।"
+        ),
+        mr=(
+            "यापूर्वी मूल्यांकन केले असल्यास, संहनन (Samhanana) किंवा "
+            "शरीराच्या बांध्याच्या घट्टपणाबाबत उपलब्ध मूल्यांकन सांगा."
+        ),
     ),
     _question(
         5,
@@ -253,6 +371,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please provide the available Pramana or body measurement "
         "information, if previously assessed.",
+        hi=(
+            "यदि पहले आकलन किया गया है, तो प्रमाण (Pramana) या शरीर के "
+            "माप से संबंधित उपलब्ध जानकारी बताएं।"
+        ),
+        bn=(
+            "যদি আগে মূল্যায়ন করা হয়ে থাকে, তাহলে প্রমাণ (Pramana) বা "
+            "শরীরের পরিমাপ সম্পর্কিত উপলব্ধ তথ্য জানান।"
+        ),
+        mr=(
+            "यापूर्वी मूल्यांकन केले असल्यास, प्रमाण (Pramana) किंवा "
+            "शरीराच्या मोजमापाबाबत उपलब्ध माहिती सांगा."
+        ),
     ),
     _question(
         6,
@@ -260,6 +390,21 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe Satmya, including substances, foods, or routines "
         "that the person is accustomed to or tolerates well.",
+        hi=(
+            "सात्म्य (Satmya) का वर्णन करें, जिसमें वे पदार्थ, खाद्य पदार्थ "
+            "या दिनचर्याएं शामिल हों जिनका व्यक्ति अभ्यस्त है या जिन्हें "
+            "वह अच्छी तरह सहन करता है।"
+        ),
+        bn=(
+            "সাত্ম্য (Satmya) সম্পর্কে বর্ণনা করুন। ব্যক্তি যে উপাদান, "
+            "খাবার বা দৈনন্দিন অভ্যাসে অভ্যস্ত বা যেগুলো ভালোভাবে সহ্য করেন, "
+            "সেগুলো উল্লেখ করুন।"
+        ),
+        mr=(
+            "सात्म्य (Satmya) बद्दल सांगा. व्यक्तीला सवयीचे असलेले किंवा "
+            "ज्यांचे तो/ती चांगल्या प्रकारे सहन करते असे पदार्थ, अन्न किंवा "
+            "दिनचर्या यांचा समावेश करा."
+        ),
     ),
     _question(
         7,
@@ -267,6 +412,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe the available assessment of Sattva or mental "
         "strength, if previously assessed.",
+        hi=(
+            "यदि पहले आकलन किया गया है, तो सत्त्व (Sattva) या मानसिक "
+            "सामर्थ्य से संबंधित उपलब्ध आकलन बताएं।"
+        ),
+        bn=(
+            "যদি আগে মূল্যায়ন করা হয়ে থাকে, তাহলে সত্ত্ব (Sattva) বা "
+            "মানসিক শক্তি সম্পর্কে উপলব্ধ মূল্যায়ন জানান।"
+        ),
+        mr=(
+            "यापूर्वी मूल्यांकन केले असल्यास, सत्त्व (Sattva) किंवा "
+            "मानसिक सामर्थ्याबाबत उपलब्ध मूल्यांकन सांगा."
+        ),
     ),
     _question(
         8,
@@ -274,6 +431,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe the person's usual Ahara Shakti or capacity "
         "related to food intake and digestion, based on history.",
+        hi=(
+            "इतिहास के आधार पर व्यक्ति की सामान्य आहार शक्ति (Ahara Shakti) "
+            "या भोजन ग्रहण और पाचन से संबंधित क्षमता का वर्णन करें।"
+        ),
+        bn=(
+            "ইতিহাসের ভিত্তিতে ব্যক্তির স্বাভাবিক আহার শক্তি (Ahara Shakti) "
+            "বা খাদ্য গ্রহণ ও হজমের সঙ্গে সম্পর্কিত সক্ষমতা সম্পর্কে বলুন।"
+        ),
+        mr=(
+            "इतिहासाच्या आधारे व्यक्तीची नेहमीची आहार शक्ती (Ahara Shakti) "
+            "किंवा अन्न सेवन व पचनाशी संबंधित क्षमता सांगा."
+        ),
     ),
     _question(
         9,
@@ -281,30 +450,54 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.DASHAVIDHA_PARIKSHA,
         "Please describe the person's usual Vyayama Shakti or exercise "
         "capacity.",
+        hi=(
+            "कृपया व्यक्ति की सामान्य व्यायाम शक्ति (Vyayama Shakti) या "
+            "व्यायाम करने की क्षमता का वर्णन करें।"
+        ),
+        bn=(
+            "ব্যক্তির স্বাভাবিক ব্যায়াম শক্তি (Vyayama Shakti) বা "
+            "ব্যায়াম করার সক্ষমতা সম্পর্কে বর্ণনা করুন।"
+        ),
+        mr=(
+            "व्यक्तीची नेहमीची व्यायाम शक्ती (Vyayama Shakti) किंवा "
+            "व्यायाम करण्याची क्षमता सांगा."
+        ),
     ),
     _question(
         10,
         AyushField.VAYA.value,
         AyushSection.DASHAVIDHA_PARIKSHA,
         "What is the person's age or Vaya?",
+        hi="व्यक्ति की आयु या वय (Vaya) क्या है?",
+        bn="ব্যক্তির বয়স বা বয় (Vaya) কত?",
+        mr="व्यक्तीचे वय किंवा वय (Vaya) किती आहे?",
     ),
     _question(
         11,
         AyushField.AHARA_PATTERN.value,
         AyushSection.AHARA,
         "Please describe the person's usual food and eating pattern.",
+        hi="कृपया व्यक्ति के सामान्य भोजन और खाने के तरीके का वर्णन करें।",
+        bn="ব্যক্তির স্বাভাবিক খাবার এবং খাওয়ার ধরন সম্পর্কে বর্ণনা করুন।",
+        mr="कृपया व्यक्तीच्या नेहमीच्या आहार आणि खाण्याच्या पद्धतीचे वर्णन करा.",
     ),
     _question(
         12,
         AyushField.AHARA_TIMING.value,
         AyushSection.AHARA,
         "What is the usual timing and regularity of meals?",
+        hi="भोजन का सामान्य समय और नियमितता कैसी है?",
+        bn="সাধারণত খাবারের সময় এবং নিয়মিততা কেমন?",
+        mr="जेवणाची नेहमीची वेळ आणि नियमितता कशी आहे?",
     ),
     _question(
         13,
         AyushField.AHARA_APPETITE.value,
         AyushSection.AHARA,
         "How would you describe the person's usual appetite?",
+        hi="आप व्यक्ति की सामान्य भूख का वर्णन कैसे करेंगे?",
+        bn="ব্যক্তির স্বাভাবিক ক্ষুধা কীভাবে বর্ণনা করবেন?",
+        mr="व्यक्तीची नेहमीची भूक तुम्ही कशी वर्णन कराल?",
     ),
     _question(
         14,
@@ -312,6 +505,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.AHARA,
         "Are there foods that the person does not tolerate or that commonly "
         "cause discomfort?",
+        hi=(
+            "क्या ऐसे खाद्य पदार्थ हैं जिन्हें व्यक्ति सहन नहीं करता या "
+            "जिनसे आमतौर पर असुविधा होती है?"
+        ),
+        bn=(
+            "এমন কোনো খাবার আছে কি যা ব্যক্তি সহ্য করতে পারেন না বা যা "
+            "সাধারণত অস্বস্তি সৃষ্টি করে?"
+        ),
+        mr=(
+            "अशी काही अन्नपदार्थ आहेत का जे व्यक्तीला सहन होत नाहीत किंवा "
+            "ज्यामुळे नेहमी त्रास होतो?"
+        ),
     ),
     _question(
         15,
@@ -319,18 +524,36 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.AHARA,
         "Are there any important dietary preferences, restrictions, or "
         "usual food choices to record?",
+        hi=(
+            "क्या कोई महत्वपूर्ण आहार संबंधी पसंद, प्रतिबंध या सामान्य "
+            "खाद्य विकल्प दर्ज करने हैं?"
+        ),
+        bn=(
+            "কোনো গুরুত্বপূর্ণ খাদ্য পছন্দ, বিধিনিষেধ বা সাধারণ খাবারের "
+            "পছন্দ কি নথিভুক্ত করা দরকার?"
+        ),
+        mr=(
+            "नोंद करण्यासारख्या काही महत्त्वाच्या आहारविषयक आवडी, "
+            "मर्यादा किंवा नेहमीच्या खाद्य निवडी आहेत का?"
+        ),
     ),
     _question(
         16,
         AyushField.VIHARA_SLEEP.value,
         AyushSection.VIHARA,
         "Please describe the person's usual sleep pattern and sleep quality.",
+        hi="कृपया व्यक्ति की सामान्य नींद की दिनचर्या और नींद की गुणवत्ता का वर्णन करें।",
+        bn="ব্যক্তির স্বাভাবিক ঘুমের ধরন এবং ঘুমের মান সম্পর্কে বর্ণনা করুন।",
+        mr="कृपया व्यक्तीच्या नेहमीच्या झोपेची पद्धत आणि झोपेची गुणवत्ता सांगा.",
     ),
     _question(
         17,
         AyushField.VIHARA_ACTIVITY.value,
         AyushSection.VIHARA,
         "Please describe the person's usual daily physical activity.",
+        hi="कृपया व्यक्ति की सामान्य दैनिक शारीरिक गतिविधि का वर्णन करें।",
+        bn="ব্যক্তির স্বাভাবিক দৈনিক শারীরিক কার্যকলাপ সম্পর্কে বর্ণনা করুন।",
+        mr="कृपया व्यक्तीच्या नेहमीच्या दैनंदिन शारीरिक हालचालींचे वर्णन करा.",
     ),
     _question(
         18,
@@ -338,12 +561,27 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.VIHARA,
         "Please describe the person's usual exercise or physical activity "
         "routine.",
+        hi=(
+            "कृपया व्यक्ति की सामान्य व्यायाम या शारीरिक गतिविधि की "
+            "दिनचर्या का वर्णन करें।"
+        ),
+        bn=(
+            "ব্যক্তির স্বাভাবিক ব্যায়াম বা শারীরিক কার্যকলাপের রুটিন "
+            "সম্পর্কে বর্ণনা করুন।"
+        ),
+        mr=(
+            "कृपया व्यक्तीच्या नेहमीच्या व्यायाम किंवा शारीरिक "
+            "हालचालींच्या दिनचर्येचे वर्णन करा."
+        ),
     ),
     _question(
         19,
         AyushField.VIHARA_DAILY_ROUTINE.value,
         AyushSection.VIHARA,
         "Please describe the person's usual daily routine.",
+        hi="कृपया व्यक्ति की सामान्य दैनिक दिनचर्या का वर्णन करें।",
+        bn="ব্যক্তির স্বাভাবিক দৈনন্দিন রুটিন সম্পর্কে বর্ণনা করুন।",
+        mr="कृपया व्यक्तीच्या नेहमीच्या दैनंदिन दिनचर्येचे वर्णन करा.",
     ),
     _question(
         20,
@@ -351,6 +589,18 @@ AYUSH_QUESTIONS: Final[tuple[AyushQuestion, ...]] = (
         AyushSection.VIHARA,
         "Please describe any relevant stress, workload, or routine-related "
         "factors.",
+        hi=(
+            "कृपया किसी भी प्रासंगिक तनाव, कार्यभार या दिनचर्या से संबंधित "
+            "कारकों का वर्णन करें।"
+        ),
+        bn=(
+            "প্রাসঙ্গিক মানসিক চাপ, কাজের চাপ বা দৈনন্দিন রুটিন সম্পর্কিত "
+            "কোনো বিষয় সম্পর্কে বর্ণনা করুন।"
+        ),
+        mr=(
+            "कृपया संबंधित ताण, कामाचा भार किंवा दिनचर्येशी संबंधित "
+            "घटकांबद्दल सांगा."
+        ),
     ),
 )
 
@@ -439,6 +689,20 @@ class AyushMode:
 
         raise ValueError(f"Unknown AYUSH question: {question_id!r}")
 
+    def get_question_text(
+        self,
+        question_id: str,
+        language: str = "en",
+    ) -> str:
+        """
+        Return a localized question text by question ID.
+
+        Falls back to English when the requested language is unsupported
+        or when a translation is unavailable.
+        """
+        question = self.get_question(question_id)
+        return question.text_for(language)
+
     def validate_field(self, field_id: str) -> str:
         """
         Validate and return an AYUSH field identifier.
@@ -504,7 +768,11 @@ class AyushMode:
         collected = len(self.collected_fields())
         remaining = total - collected
 
-        percentage = 0.0 if total == 0 else (collected / total) * 100.0
+        percentage = (
+            0.0
+            if total == 0
+            else (collected / total) * 100.0
+        )
 
         return AyushProgress(
             total_fields=total,

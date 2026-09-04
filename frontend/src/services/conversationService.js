@@ -67,6 +67,7 @@ export async function startConversation({
   sessionId,
   complaint,
   language = "en",
+  mode = "allopathy",
 }) {
   const response =
     await fetch(
@@ -86,6 +87,8 @@ export async function startConversation({
           complaint,
 
           language,
+
+          mode,
         }),
       }
     );

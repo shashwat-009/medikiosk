@@ -9,6 +9,7 @@ import Interview from "./pages/patient/Interview";
 import Documents from "./pages/patient/Documents";
 import Processing from "./pages/patient/Processing";
 import Confirmation from "./pages/patient/Confirmation";
+import ModeSelection from "./pages/patient/ModeSelection";
 
 // Doctor pages
 import DoctorLogin from "./pages/doctor/Login";
@@ -27,6 +28,8 @@ export default function App() {
         <Route path="/documents" element={<Documents />} />
         <Route path="/processing" element={<Processing />} />
         <Route path="/confirmation" element={<Confirmation />} />
+        <Route path="/mode" element={<ModeSelection />} />
+        
 
         {/* Doctor Flow */}
         <Route path="/doctor/login" element={<DoctorLogin />} />

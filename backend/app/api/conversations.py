@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from ai.conversation.ayush_mode import AyushMode
 from ai.conversation.dialogue_manager import DialogueManager
 from ai.conversation.question_bank import QuestionLanguage
 
@@ -18,21 +19,12 @@ router = APIRouter(
 # ---------------------------------------------------------------------------
 # In-memory conversation store
 # ---------------------------------------------------------------------------
-#
-# This is intentionally an MVP implementation.
-#
-# The actual persistent responses continue to be stored through /responses.
-# The DialogueManager contains temporary runtime state for the active
-# interview.
-#
-# Later this can move to Redis/database/session storage.
-# ---------------------------------------------------------------------------
 
 _managers: dict[int, DialogueManager] = {}
 
 
 # ---------------------------------------------------------------------------
-# Request / response schemas
+# Request schemas
 # ---------------------------------------------------------------------------
 
 
@@ -40,6 +32,7 @@ class ConversationStartRequest(BaseModel):
     session_id: int
     complaint: str
     language: str = "en"
+    mode: str = "allopathy"
 
 
 class ConversationAnswerRequest(BaseModel):
@@ -56,119 +49,65 @@ class ConversationAnswerRequest(BaseModel):
 
 
 _COMPLAINT_KEYWORDS = {
-    # ================================================================
-    # FEVER
-    # ================================================================
     "fever": (
-        # English
         "fever",
         "temperature",
         "high temperature",
-
-        # Hindi / Hinglish
         "bukhar",
         "बुखार",
-
-        # Bengali
         "জ্বর",
         "বুকার",
-
-        # Marathi
         "ताप",
         "अंगात ताप",
     ),
-
-    # ================================================================
-    # CHEST PAIN
-    # ================================================================
     "chest_pain": (
-        # English
         "chest pain",
         "pain in chest",
         "chest discomfort",
-
-        # Hindi / Hinglish
         "seene mein dard",
         "seene ka dard",
         "सीने में दर्द",
         "सीने का दर्द",
-
-        # Bengali
         "বুকে ব্যথা",
         "বুকে ব্যাথা",
         "বুকের ব্যথা",
-
-        # Marathi
         "छातीत दुखणे",
         "छातीत दुखत",
         "छाती दुखणे",
     ),
-
-    # ================================================================
-    # COUGH
-    # ================================================================
     "cough": (
-        # English
         "cough",
-
-        # Hindi / Hinglish
         "khansi",
         "khaansi",
         "खांसी",
         "खाँसी",
-
-        # Bengali
         "কাশি",
-
-        # Marathi
         "खोकला",
     ),
-
-    # ================================================================
-    # HEADACHE
-    # ================================================================
     "headache": (
-        # English
         "headache",
         "head ache",
-
-        # Hindi / Hinglish
         "sir dard",
         "sar dard",
         "सिर दर्द",
         "सर दर्द",
-
-        # Bengali
         "মাথাব্যথা",
         "মাথা ব্যথা",
-
-        # Marathi
         "डोकेदुखी",
         "डोके दुखणे",
     ),
-
-    # ================================================================
-    # ABDOMINAL PAIN
-    # ================================================================
     "abdominal_pain": (
-        # English
         "abdominal pain",
         "stomach pain",
         "belly pain",
         "stomach ache",
-
-        # Hindi / Hinglish
         "pet pain",
         "pet dard",
         "पेट दर्द",
         "पेट में दर्द",
-
-        # Bengali
         "পেট ব্যথা",
         "পেটে ব্যথা",
         "পেটের ব্যথা",
-
-        # Marathi
         "पोटदुखी",
         "पोटात दुखणे",
         "पोटात दुखत",
@@ -178,14 +117,9 @@ _COMPLAINT_KEYWORDS = {
 
 def resolve_complaint(text: str) -> str | None:
     """
-    Resolve a patient's chief-complaint text to a supported ontology
-    complaint.
+    Resolve a patient's chief complaint to a supported complaint category.
 
-    This is deliberately deterministic.
-
-    It does NOT diagnose the patient.
-    It only maps obvious complaint phrases to the five supported
-    conversation categories.
+    This is deterministic and does not diagnose the patient.
     """
 
     normalized = text.strip().lower()
@@ -193,7 +127,6 @@ def resolve_complaint(text: str) -> str | None:
     if not normalized:
         return None
 
-    # Exact supported complaint first.
     supported = {
         "fever",
         "chest_pain",
@@ -217,45 +150,80 @@ def resolve_complaint(text: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
-def serialize_question(question):
+def serialize_question(
+    question,
+    language: str = "en",
+):
+    """
+    Convert an internal question object into the API response format.
+
+    Allopathy questions already contain their configured language.
+
+    AYUSH questions contain translations and use text_for(language)
+    so the patient's selected language is preserved.
+    """
+
     if question is None:
         return None
 
+    # Standard Allopathy question
+    if hasattr(question, "question_id"):
+        return {
+            "id": question.question_id,
+            "field_id": question.field_id,
+            "question": question.text,
+            "language": question.language.value,
+            "answer_type": question.answer_type,
+            "options": list(question.options),
+            "priority": question.priority,
+        }
+
+    # AYUSH question
     return {
-        "id": question.question_id,
+        "id": question.id,
         "field_id": question.field_id,
-        "question": question.text,
-        "language": question.language.value,
-        "answer_type": question.answer_type,
-        "options": list(question.options),
-        "priority": question.priority,
+        "question": question.text_for(language),
+        "language": language,
+        "answer_type": "text",
+        "options": [],
+        "priority": None,
     }
 
 
-def serialize_result(result):
+def serialize_result(
+    result,
+    language: str = "en",
+):
+    """
+    Serialize a conversation result while preserving the active language.
+    """
+
     return {
-        "next_question": serialize_question(result.next_question),
+        "next_question": serialize_question(
+            result.next_question,
+            language,
+        ),
         "completed": result.completed,
         "red_flag": (
-    {
-        "detected": result.red_flag.detected,
-        "category": result.red_flag.category,
-        "matched_pattern": result.red_flag.matched_pattern,
-        "flag_id": result.red_flag.flag_id,
-        "priority": (
-            result.red_flag.priority.value
-            if result.red_flag.priority is not None
+            {
+                "detected": result.red_flag.detected,
+                "category": result.red_flag.category,
+                "matched_pattern": result.red_flag.matched_pattern,
+                "flag_id": result.red_flag.flag_id,
+                "priority": (
+                    result.red_flag.priority.value
+                    if result.red_flag.priority is not None
+                    else None
+                ),
+                "matched_fields": list(
+                    result.red_flag.matched_fields
+                ),
+                "matched_text": result.red_flag.matched_text,
+                "explanation": result.red_flag.explanation,
+            }
+            if result.red_flag is not None
             else None
         ),
-        "matched_fields": list(
-            result.red_flag.matched_fields
-        ),
-        "matched_text": result.red_flag.matched_text,
-        "explanation": result.red_flag.explanation,
-    }
-    if result.red_flag is not None
-    else None
-),
     }
 
 
@@ -268,6 +236,23 @@ def serialize_result(result):
 def start_conversation(
     request: ConversationStartRequest,
 ):
+    # ---------------------------------------------------------------
+    # Validate mode
+    # ---------------------------------------------------------------
+
+    if request.mode not in {"allopathy", "ayush"}:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported conversation mode. "
+                "Use 'allopathy' or 'ayush'."
+            ),
+        )
+
+    # ---------------------------------------------------------------
+    # Resolve chief complaint
+    # ---------------------------------------------------------------
+
     complaint = resolve_complaint(request.complaint)
 
     if complaint is None:
@@ -280,27 +265,59 @@ def start_conversation(
             ),
         )
 
+    # ---------------------------------------------------------------
+    # Validate language
+    # ---------------------------------------------------------------
+
     try:
         language = QuestionLanguage(request.language)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported conversation language: {request.language}",
+            detail=(
+                f"Unsupported conversation language: "
+                f"{request.language}"
+            ),
         )
+
+    # ---------------------------------------------------------------
+    # Create AYUSH mode when requested
+    # ---------------------------------------------------------------
+
+    ayush_mode = (
+        AyushMode()
+        if request.mode == "ayush"
+        else None
+    )
+
+    # ---------------------------------------------------------------
+    # Create dialogue manager
+    # ---------------------------------------------------------------
 
     manager = DialogueManager.create(
         complaint,
         language=language,
+        ayush_mode=ayush_mode,
     )
 
+    # Store active manager against the existing session
     _managers[request.session_id] = manager
+
+    # ---------------------------------------------------------------
+    # Start interview
+    # ---------------------------------------------------------------
 
     question = manager.start()
 
     return {
         "session_id": request.session_id,
         "complaint": complaint,
-        "question": serialize_question(question),
+        "mode": request.mode,
+        "question": serialize_question(
+            question,
+            language.value,
+        ),
         "completed": question is None,
     }
 
@@ -352,7 +369,10 @@ def answer_conversation(
             detail=str(exc),
         )
 
-    return serialize_result(result)
+    return serialize_result(
+        result,
+        manager.language.value,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -373,6 +393,9 @@ def get_next_question(session_id: int):
     question = manager.get_next_question()
 
     return {
-        "question": serialize_question(question),
+        "question": serialize_question(
+            question,
+            manager.language.value,
+        ),
         "completed": question is None,
     }

@@ -82,7 +82,7 @@ export default function Consent() {
       // Continue
       // =========================
 
-      navigate("/interview");
+      navigate("/mode");
 
     } catch (err) {
       console.error(

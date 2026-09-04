@@ -5,7 +5,7 @@ const KioskContext = createContext(null);
 const initialState = {
   // Kiosk configuration
   language: null,
-  mode: "allopathic",
+  mode: "allopathy",
 
   // Backend entities
   patient: null,

@@ -31,6 +31,7 @@ export default function Interview() {
   } = useKiosk();
 
   const language = state.language || "en";
+  const mode = state.mode || "allopathy";
 
   const [conversationStarted, setConversationStarted] =
     useState(false);
@@ -158,6 +159,7 @@ export default function Interview() {
           sessionId: state.session.id,
           complaint,
           language,
+          mode,
         });
 
       if (!result?.question) {
